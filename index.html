@@ -119,6 +119,23 @@ h1.report-title {
   font-size: 15px;
   font-weight: 500;
 }
+.title-controls {
+  display: flex; align-items: center; gap: 12px;
+}
+.export-btn {
+  display: inline-flex; align-items: center;
+  padding: 9px 16px; border-radius: 12px;
+  border: 1px solid var(--blue); background: white; color: var(--blue);
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+  letter-spacing: .2px;
+  height: 38px;
+  box-shadow: var(--shadow);
+}
+.export-btn:hover { background: var(--blue); color: white; }
+.export-btn:active { transform: translateY(1px); }
+.export-btn:disabled { opacity: .5; cursor: wait; }
+
 .month-selector {
   display: inline-flex;
   align-items: center;
@@ -772,12 +789,165 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
   margin-top: 4px;
 }
 
+/* ---------- PRINT/PDF MODE ---------- */
 @media print {
-  body { background: white; }
-  .report { padding: 20px; max-width: none; }
-  .month-selector { width: 100%; justify-content: space-between; }
-  .kpi-card, .col-card, .card, .trend-card, .insight { box-shadow: none; break-inside: avoid; }
-  .section { break-inside: avoid; }
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  html, body {
+    background: white !important;
+    color: var(--text) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Skjul UI-elementer der ikke hører til i PDF */
+  .export-btn, .title-controls, .month-selector,
+  .modal-overlay, #password-gate {
+    display: none !important;
+  }
+  /* Force columns — override responsive breakpoints */
+  .trend-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .three-col { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+  .two-col { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .insight-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .channel-trio { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+  .rolling-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 12px !important; }
+
+  /* Disable animations and hover effects */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .trend-card:hover { transform: none !important; box-shadow: var(--shadow) !important; }
+  .trend-card::after, .kpi-card::after { display: none !important; }
+
+  /* Report container — full width, no shadow */
+  .report {
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: white !important;
+  }
+
+  /* Brand bar */
+  .brand-bar {
+    margin-bottom: 4mm !important;
+    padding-bottom: 3mm !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-logo { width: 80px !important; }
+  .brand-text .name { font-size: 11pt !important; }
+  .brand-text .meta { font-size: 8pt !important; }
+  .doc-type { font-size: 8pt !important; }
+
+  /* Title */
+  .title-row { margin-bottom: 4mm !important; align-items: flex-start; }
+  .report-title { font-size: 20pt !important; margin: 0 0 1mm !important; line-height: 1.1 !important; }
+  .report-subtitle { font-size: 9pt !important; }
+
+  /* Headline */
+  .headline {
+    background: var(--blue) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    margin-bottom: 5mm !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .headline-label { font-size: 7pt !important; margin-bottom: 4px !important; }
+  .headline-text { font-size: 12pt !important; line-height: 1.3 !important; }
+  .headline-summary { font-size: 9pt !important; line-height: 1.5 !important; margin-top: 8px !important; }
+  .headline-pulse { font-size: 8.5pt !important; gap: 14px !important; padding-top: 8px !important; margin-top: 10px !important; }
+  .headline-pulse .pulse-value { font-size: 10pt !important; }
+
+  /* Section spacing */
+  .section {
+    margin-bottom: 5mm !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .section-head { margin-bottom: 6px !important; }
+  .section-title { font-size: 11pt !important; }
+  .section-meta { font-size: 8pt !important; }
+
+  /* KPI Trend cards (Nøgletal section) */
+  .trend-card {
+    padding: 10px 12px 8px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border-radius: 8px !important;
+  }
+  .trend-head { margin-bottom: 8px !important; }
+  .trend-label { font-size: 8pt !important; margin-bottom: 2px !important; line-height: 1.3 !important; }
+  .trend-month-suffix { font-size: 8pt !important; margin-left: 4px !important; }
+  .trend-value { font-size: 14pt !important; }
+  .trend-sub { font-size: 8pt !important; margin-top: 2px !important; }
+  .trend-chart { height: 100px !important; margin-top: 4px !important; }
+
+  /* Delta badge — undgå overflow */
+  .delta { font-size: 8pt !important; padding: 1px 5px !important; }
+  .delta-wrap { gap: 2px !important; }
+  .delta-label { font-size: 7pt !important; white-space: nowrap; }
+
+  /* Rolling 3M block */
+  .rolling-block { padding: 10px 14px !important; border-radius: 8px !important; }
+  .rolling-head { margin-bottom: 8px !important; padding-bottom: 6px !important; }
+  .rolling-title { font-size: 8pt !important; }
+  .rolling-sub { font-size: 8pt !important; }
+  .rolling-cell .r-avg { font-size: 12pt !important; line-height: 1 !important; }
+  .rolling-cell .r-label { font-size: 7pt !important; }
+  .rolling-cell .r-total, .rolling-cell .r-delta { font-size: 7pt !important; }
+  .rolling-cell .r-avg-tag { font-size: 7pt !important; margin-left: 3px !important; }
+
+  /* Kanal-performance trio */
+  .channel-trio-cell { padding: 8px 10px 6px !important; border-radius: 8px !important; }
+  .channel-trio-title { font-size: 7pt !important; margin-bottom: 4px !important; }
+  .channel-trio-chart { height: 95px !important; }
+  .channel-legend { flex-wrap: wrap !important; gap: 4px !important; margin: 0 !important; width: 100%; }
+  .channel-legend button { font-size: 7pt !important; padding: 2px 6px !important; cursor: default; }
+  .channel-chart-controls { padding-bottom: 8px !important; margin-bottom: 8px !important; }
+
+  /* Channel-table */
+  .channel-table-compact { font-size: 7.5pt !important; margin-top: 6px !important; }
+  .channel-table-compact thead th { padding: 4px !important; font-size: 7pt !important; }
+  .channel-table-compact tbody td { padding: 3px 4px !important; }
+
+  /* Wins/Watch/Priorities */
+  .col-card { padding: 8px 10px !important; border-radius: 8px !important; page-break-inside: avoid; break-inside: avoid; }
+  .col-head { font-size: 8pt !important; margin-bottom: 4px !important; }
+  .col-list li { font-size: 8pt !important; line-height: 1.4 !important; padding: 3px 0 !important; }
+  .num-bullet { font-size: 7pt !important; }
+
+  /* Insights */
+  .insight { padding: 10px 12px !important; border-radius: 8px !important; page-break-inside: avoid; break-inside: avoid; }
+  .insight p { font-size: 8pt !important; line-height: 1.5 !important; }
+  .insight .label { font-size: 7pt !important; margin-bottom: 4px !important; }
+
+  /* Cards (Partnership, Regningstjek) */
+  .card { page-break-inside: avoid; break-inside: avoid; padding: 12px 14px !important; }
+  .card .metric-row { padding: 5px 0 !important; font-size: 8pt !important; }
+
+  /* Glossary */
+  .glossary-card { padding: 12px 14px !important; }
+
+  /* Footer */
+  .footer { margin-top: 6mm !important; padding-top: 3mm !important; font-size: 7pt !important; }
+
+  /* Print canvas-image swap */
+  canvas.print-hidden { display: none !important; }
+  img.print-canvas-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
 }
 
 @media (max-width: 900px) {
@@ -815,10 +985,17 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
       <h1 class="report-title">Marketingrapport</h1>
       <div class="report-subtitle" id="subtitleLabel"></div>
     </div>
-    <div class="month-selector">
-      <label for="monthSelect" class="month-selector-label">Måned</label>
-      <select id="monthSelect" class="month-select" aria-label="Vælg måned">
-        <option value="mar-26" selected>Marts 2026</option>
+    <div class="title-controls">
+      <button id="exportPdfBtn" class="export-btn" title="Download som PDF">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;flex-shrink:0">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download PDF
+      </button>
+      <div class="month-selector">
+        <label for="monthSelect" class="month-selector-label">Måned</label>
+        <select id="monthSelect" class="month-select" aria-label="Vælg måned">
+          <option value="mar-26" selected>Marts 2026</option>
 <option value="feb-26">Februar 2026</option>
 <option value="jan-26">Januar 2026</option>
 <option value="dec-25">December 2025</option>
@@ -838,7 +1015,8 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
 <option value="okt-24">Oktober 2024</option>
 <option value="sep-24">September 2024</option>
 
-      </select>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -2046,6 +2224,88 @@ function pretty_month_label_js(label) {
 
 // --- Initial render ---
 render(DATA.defaultLabel);
+
+// --- PDF Export via browser-native print ---
+// Industry-standard: konvertér Chart.js canvases til PNG-billeder FØR print-CSS aktiveres.
+// Hvis vi gør det i 'beforeprint'-event er print-mode allerede aktivt og Chart.js har
+// resizeret/clearet canvasen — så vi skal gøre det synkront i click-handleren.
+
+function _getChartInstance(canvas) {
+  // Map canvas-id til known Chart.js-instance (toBase64Image er mere robust end canvas.toDataURL)
+  const map = {
+    chartSignups: chartSignups, chartCAC: chartCAC, chartSpend: chartSpend,
+    chartActive: chartActive, chartCVR: chartCVR, chartClientsPaid: chartClientsPaid,
+    channelChartSignups: chartChannelSignups, channelChartSpend: chartChannelSpend,
+    channelChartCAC: chartChannelCAC,
+  };
+  return map[canvas.id] || null;
+}
+
+function _swapCanvasesToImages() {
+  document.querySelectorAll('.report canvas').forEach(canvas => {
+    if (canvas.classList.contains('print-hidden')) return;
+    try {
+      const inst = _getChartInstance(canvas);
+      // Brug Chart.js toBase64Image() når muligt — den re-rendrer canvas friskt før capture.
+      // Falder tilbage på canvas.toDataURL() hvis der ikke er nogen Chart.js-instans.
+      let dataUrl;
+      if (inst && typeof inst.toBase64Image === 'function') {
+        dataUrl = inst.toBase64Image('image/png', 1.0);
+      } else {
+        dataUrl = canvas.toDataURL('image/png', 1.0);
+      }
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.className = 'print-canvas-img';
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+      canvas.parentNode.insertBefore(img, canvas);
+      canvas.classList.add('print-hidden');
+    } catch(e) {
+      console.warn('Could not snapshot canvas:', canvas.id, e);
+    }
+  });
+}
+
+function _restoreCanvases() {
+  document.querySelectorAll('img.print-canvas-img').forEach(img => img.remove());
+  document.querySelectorAll('canvas.print-hidden').forEach(c => c.classList.remove('print-hidden'));
+  // Resize alle charts tilbage til normal layout
+  [chartSignups, chartCAC, chartSpend, chartActive, chartCVR, chartClientsPaid,
+   chartChannelSignups, chartChannelSpend, chartChannelCAC].forEach(c => {
+    if (c) { try { c.resize(); } catch(e) {} }
+  });
+}
+
+// Restore er pålideligt i 'afterprint'. Swap-til-images sker i click-handleren (ikke beforeprint)
+// for at undgå at print-CSS allerede har triggeret canvas-resize.
+window.addEventListener('afterprint', _restoreCanvases);
+
+document.getElementById('exportPdfBtn').addEventListener('click', () => {
+  // 1) Resize charts til current screen-bredde så snapshots er klare
+  [chartSignups, chartCAC, chartSpend, chartActive, chartCVR, chartClientsPaid,
+   chartChannelSignups, chartChannelSpend, chartChannelCAC].forEach(c => {
+    if (c) { try { c.resize(); c.update('none'); } catch(e) {} }
+  });
+
+  // 2) Vent på animation frame + lille delay så Chart.js har malet
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      // 3) Snapshot canvases til billeder NU (mens screen-CSS er aktiv)
+      _swapCanvasesToImages();
+      // 4) Vent et frame mere så billederne loader, derefter trigger print
+      requestAnimationFrame(() => {
+        setTimeout(() => window.print(), 50);
+      });
+    }, 100);
+  });
+});
+
+// Hvis brugeren bruger Cmd+P direkte (uden vores knap), så fang det også
+window.addEventListener('beforeprint', () => {
+  if (!document.querySelector('img.print-canvas-img')) {
+    _swapCanvasesToImages();
+  }
+});
 </script>
 </div>
 </body>
