@@ -256,6 +256,15 @@ h1.report-title {
 .delta-good { color: var(--green); background: var(--green-soft); }
 .delta-bad  { color: var(--red);   background: var(--red-soft); }
 .delta-neutral { color: var(--muted); background: #F1F5F9; }
+.delta-wrap {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.delta-wrap .delta { margin-left: 0; }
+.delta-label {
+  font-size: 10px; color: var(--muted-2);
+  font-weight: 500; letter-spacing: .2px;
+  white-space: nowrap;
+}
 
 .pill {
   display: inline-block; font-size: 10px; font-weight: 700;
@@ -339,14 +348,14 @@ h1.report-title {
 /* ---------- Trend charts ---------- */
 .trend-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 .trend-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 22px 24px 16px;
+  padding: 24px 28px 20px;
   box-shadow: var(--shadow);
   cursor: pointer;
   transition: transform .15s ease, box-shadow .15s ease;
@@ -355,8 +364,8 @@ h1.report-title {
 .trend-card::after {
   content: "↗";
   position: absolute;
-  top: 16px; right: 18px;
-  font-size: 13px;
+  top: 18px; right: 22px;
+  font-size: 14px;
   color: var(--muted-2);
   opacity: 0;
   transition: opacity .15s;
@@ -368,19 +377,33 @@ h1.report-title {
 .trend-card:hover::after { opacity: .7; }
 .trend-head {
   display: flex; align-items: flex-start; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .trend-label {
-  font-size: 11px; font-weight: 700; letter-spacing: .8px;
+  font-size: 12px; font-weight: 700; letter-spacing: .8px;
   text-transform: uppercase; color: var(--muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .trend-value {
-  font-size: 22px; font-weight: 700;
+  font-size: 26px; font-weight: 700;
   letter-spacing: -.4px;
   font-variant-numeric: tabular-nums;
 }
-.trend-chart { height: 130px; position: relative; margin-top: 8px; }
+.trend-sub {
+  font-size: 12px; color: var(--muted);
+  margin-top: 4px;
+  font-weight: 500;
+}
+.trend-month-suffix {
+  color: var(--blue);
+  font-weight: 700;
+  margin-left: 6px;
+}
+/* Større grafer nu hvor de er 2 i bredden i stedet for 3 */
+.trend-chart { height: 220px; position: relative; margin-top: 10px; }
+@media (max-width: 720px) {
+  .trend-grid { grid-template-columns: 1fr; }
+}
 
 /* ---------- Three-column ---------- */
 .three-col {
@@ -517,6 +540,31 @@ table.matrix tfoot td.num { text-align: right; }
   position: relative;
   height: 340px;
   margin: 4px 0 18px;
+}
+.channel-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.channel-trio-cell {
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+}
+.channel-trio-title {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .8px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+.channel-trio-chart {
+  position: relative;
+  height: 220px;
+}
+@media (max-width: 1024px) {
+  .channel-trio { grid-template-columns: 1fr; }
+  .channel-trio-chart { height: 240px; }
 }
 .channel-chart-controls {
   display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
@@ -740,35 +788,8 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
 </head>
 <body>
 <!-- Password gate -->
-<div id="password-gate" style="position:fixed;inset:0;z-index:99999;background:#101D2F;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;">
-  <div style="text-align:center;max-width:380px;padding:2rem;">
-    <div style="width:64px;height:64px;margin:0 auto 1.5rem;background:#033B8C;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-      <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 2C9.24 2 7 4.24 7 7v3H5v12h14V10h-2V7c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v3H9V7c0-1.66 1.34-3 3-3zm0 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" fill="#73D0E7"/></svg>
-    </div>
-    <h2 style="color:#fff;margin:0 0 .5rem;font-size:1.4rem;font-weight:700;">Fortrolig rapport</h2>
-    <p style="color:#8899aa;margin:0 0 1.5rem;font-size:.9rem;">Indtast adgangskode for at se rapporten</p>
-    <input id="pw-input" type="password" placeholder="Adgangskode" autocomplete="off"
-      style="width:100%;padding:12px 16px;border:2px solid #1a2d45;border-radius:8px;background:#0a1525;color:#fff;font-size:1rem;outline:none;box-sizing:border-box;margin-bottom:.75rem;"
-      onfocus="this.style.borderColor='#73D0E7'" onblur="this.style.borderColor='#1a2d45'">
-    <p id="pw-error" style="color:#ff6b6b;font-size:.85rem;margin:0 0 .75rem;display:none;">Forkert adgangskode</p>
-    <button onclick="checkPw()" style="width:100%;padding:12px;background:#73D0E7;color:#101D2F;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;">Åbn rapport</button>
-  </div>
-</div>
-<script>
-(function(){
-  var h='498e5d2fdd3911edbe1e9423d90486efae294ec2042a5253fabd55aa7e2cf360';
-  async function sha256(s){var e=new TextEncoder().encode(s);var b=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('');}
-  window.checkPw=async function(){
-    var v=document.getElementById('pw-input').value;
-    var d=await sha256(v);
-    if(d===h){document.getElementById('password-gate').remove();document.getElementById('report-content').style.display='';}
-    else{document.getElementById('pw-error').style.display='block';document.getElementById('pw-input').style.borderColor='#ff6b6b';}
-  };
-  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&document.getElementById('password-gate'))window.checkPw();});
-  setTimeout(function(){var i=document.getElementById('pw-input');if(i)i.focus();},50);
-})();
-</script>
-
+<div id="password-gate" style="position:fixed;inset:0;z-index:99999;background:#101D2F;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;"><div style="text-align:center;max-width:380px;padding:2rem;"><div style="width:64px;height:64px;margin:0 auto 1.5rem;background:#033B8C;border-radius:12px;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 2C9.24 2 7 4.24 7 7v3H5v12h14V10h-2V7c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v3H9V7c0-1.66 1.34-3 3-3zm0 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" fill="#73D0E7"/></svg></div><h2 style="color:#fff;margin:0 0 .5rem;font-size:1.4rem;font-weight:700;">Marketingrapport</h2><p style="color:#8899aa;margin:0 0 1.5rem;font-size:.9rem;">Indtast adgangskode for at se rapporten</p><input id="pw-input" type="password" placeholder="Adgangskode" autocomplete="off" style="width:100%;padding:12px 16px;border:2px solid #1a2d45;border-radius:8px;background:#0a1525;color:#fff;font-size:1rem;outline:none;box-sizing:border-box;margin-bottom:.75rem;" onfocus="this.style.borderColor='#73D0E7'" onblur="this.style.borderColor='#1a2d45'"><p id="pw-error" style="color:#ff6b6b;font-size:.85rem;margin:0 0 .75rem;display:none;">Forkert adgangskode</p><button onclick="checkPw()" style="width:100%;padding:12px;background:#73D0E7;color:#101D2F;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;">Åbn rapport</button></div></div>
+<script>(function(){var h='498e5d2fdd3911edbe1e9423d90486efae294ec2042a5253fabd55aa7e2cf360';async function sha256(s){var e=new TextEncoder().encode(s);var b=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('');}window.checkPw=async function(){var v=document.getElementById('pw-input').value;var d=await sha256(v);if(d===h){document.getElementById('password-gate').remove();document.getElementById('report-content').style.display='';}else{document.getElementById('pw-error').style.display='block';document.getElementById('pw-input').style.borderColor='#ff6b6b';}};document.addEventListener('keydown',function(e){if(e.key==='Enter'&&document.getElementById('password-gate'))window.checkPw();});setTimeout(function(){var i=document.getElementById('pw-input');if(i)i.focus();},50);})();</script>
 <div id="report-content" style="display:none;">
 
 <div class="report">
@@ -829,67 +850,150 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
     <div class="headline-pulse fade-swap" id="headlinePulse"></div>
   </div>
 
-  <!-- KPI grid -->
+  <!-- Nøgletal — 6 graf-kort, 2 i bredden, 12-måneders historik -->
   <div class="section">
     <div class="section-head">
-      <h2 class="section-title">Nøgletal · <span id="kpiMonthLabel"></span></h2>
-      <span class="section-meta">vs. <span id="kpiPrevLabel"></span> · mål fra Konfig</span>
+      <h2 class="section-title">Nøgletal · 12 måneder</h2>
+      <span class="section-meta">vs. <span id="kpiPrevLabel"></span> · klik en graf for stor visning</span>
     </div>
-    <div class="kpi-grid fade-swap" id="kpiGrid"></div>
+    <div class="trend-grid">
+      <div class="trend-card" data-trend="signups" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Nye kunder<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendSignupsValue"></div>
+            <div class="trend-sub" id="trendSignupsSub"></div>
+          </div>
+          <div class="trend-delta" id="trendSignupsDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartSignups"></canvas></div>
+      </div>
+      <div class="trend-card" data-trend="active_customers" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Aktive kunder<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendActiveValue"></div>
+            <div class="trend-sub" id="trendActiveSub"></div>
+          </div>
+          <div class="trend-delta" id="trendActiveDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartActive"></canvas></div>
+      </div>
+      <div class="trend-card" data-trend="cac" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Marketing CAC<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendCACValue"></div>
+            <div class="trend-sub" id="trendCACSub"></div>
+          </div>
+          <div class="trend-delta" id="trendCACDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartCAC"></canvas></div>
+      </div>
+      <div class="trend-card" data-trend="cvr_ex_organic" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Konvertering · ekskl. organisk<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendCVRValue"></div>
+            <div class="trend-sub" id="trendCVRSub"></div>
+          </div>
+          <div class="trend-delta" id="trendCVRDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartCVR"></canvas></div>
+      </div>
+      <div class="trend-card" data-trend="spend" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Marketing spend<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendSpendValue"></div>
+            <div class="trend-sub" id="trendSpendSub"></div>
+          </div>
+          <div class="trend-delta" id="trendSpendDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartSpend"></canvas></div>
+      </div>
+      <div class="trend-card" data-trend="clients_paid" title="Klik for stor graf">
+        <div class="trend-head">
+          <div>
+            <div class="trend-label">Sign-ups · betalt<span class="trend-month-suffix"></span></div>
+            <div class="trend-value" id="trendClientsPaidValue"></div>
+            <div class="trend-sub" id="trendClientsPaidSub"></div>
+          </div>
+          <div class="trend-delta" id="trendClientsPaidDelta"></div>
+        </div>
+        <div class="trend-chart"><canvas id="chartClientsPaid"></canvas></div>
+      </div>
+    </div>
   </div>
 
-  <!-- 3M rolling block — månedligt gennemsnit + total for de seneste 3 måneder -->
+  <!-- 3) CAC og spend — historik (rolling 3 måneder · månedligt gennemsnit) -->
   <div class="section">
+    <div class="section-head">
+      <h2 class="section-title">CAC, spend &amp; sign-ups · historik</h2>
+      <span class="section-meta">Rolling 3 måneder · månedligt gennemsnit</span>
+    </div>
     <div class="rolling-block fade-swap" id="rollingStrip">
       <div class="rolling-head">
-        <div class="rolling-title">Rolling 3 måneder · månedligt gennemsnit</div>
+        <div class="rolling-title">Seneste 3 måneder vs. forrige 3 måneder</div>
         <div class="rolling-sub" id="rollingSubLabel"></div>
       </div>
       <div class="rolling-grid" id="rollingGrid"></div>
     </div>
   </div>
 
-  <!-- Trend charts -->
+  <!-- 4) Grafiske visninger — Kanal-performance, 3 grafer side om side -->
   <div class="section">
     <div class="section-head">
-      <h2 class="section-title">12-måneders trend</h2>
-      <span class="section-meta">Udvikling op til og med valgt måned</span>
+      <h2 class="section-title">Kanal-performance · <span id="channelMonthLabel"></span></h2>
+      <span class="section-meta">12-måneders trend pr. kanal · klik kanal for at isolere</span>
     </div>
-    <div class="trend-grid">
-      <div class="trend-card" data-trend="signups" title="Klik for stor graf">
-        <div class="trend-head">
-          <div>
-            <div class="trend-label">Sign-ups</div>
-            <div class="trend-value" id="trendSignupsValue"></div>
-          </div>
-          <div class="trend-delta" id="trendSignupsDelta"></div>
-        </div>
-        <div class="trend-chart"><canvas id="chartSignups"></canvas></div>
+    <div class="card" style="padding: 18px 24px 22px;">
+      <div class="channel-chart-controls" style="border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+        <div class="channel-legend" id="channelLegend"></div>
       </div>
-      <div class="trend-card" data-trend="cac" title="Klik for stor graf">
-        <div class="trend-head">
-          <div>
-            <div class="trend-label">Marketing CAC</div>
-            <div class="trend-value" id="trendCACValue"></div>
-          </div>
-          <div class="trend-delta" id="trendCACDelta"></div>
+      <div class="channel-trio">
+        <div class="channel-trio-cell">
+          <div class="channel-trio-title">Sign-ups</div>
+          <div class="channel-trio-chart"><canvas id="channelChartSignups"></canvas></div>
         </div>
-        <div class="trend-chart"><canvas id="chartCAC"></canvas></div>
-      </div>
-      <div class="trend-card" data-trend="spend" title="Klik for stor graf">
-        <div class="trend-head">
-          <div>
-            <div class="trend-label">Marketing spend</div>
-            <div class="trend-value" id="trendSpendValue"></div>
-          </div>
-          <div class="trend-delta" id="trendSpendDelta"></div>
+        <div class="channel-trio-cell">
+          <div class="channel-trio-title">Spend</div>
+          <div class="channel-trio-chart"><canvas id="channelChartSpend"></canvas></div>
         </div>
-        <div class="trend-chart"><canvas id="chartSpend"></canvas></div>
+        <div class="channel-trio-cell">
+          <div class="channel-trio-title">CAC</div>
+          <div class="channel-trio-chart"><canvas id="channelChartCAC"></canvas></div>
+        </div>
       </div>
+      <table class="channel-table-compact fade-swap" id="channelTable" style="margin-top: 18px;">
+        <thead>
+          <tr>
+            <th>Kanal · valgt måned</th>
+            <th>Sign-ups</th>
+            <th>Spend</th>
+            <th>CAC</th>
+            <th>CVR</th>
+            <th>Trafik</th>
+          </tr>
+        </thead>
+        <tbody id="channelTbody"></tbody>
+      </table>
     </div>
   </div>
 
-  <!-- Wins / watch / priorities -->
+  <!-- 5+6) Partnership + Regningstjek side om side -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title">Vækst-initiativer</h2>
+      <span class="section-meta">Partnership · Space &amp; Regningstjek · klik for historik</span>
+    </div>
+    <div class="two-col fade-swap" id="growthGrid">
+      <div class="card" id="partnershipCard"></div>
+      <div class="card" id="regningstjekCard"></div>
+    </div>
+  </div>
+
+  <!-- 7) Tekster og prosa — Wins / Watch / Priorities + Insights -->
   <div class="section">
     <div class="section-head">
       <h2 class="section-title">Hvad lærte vi denne måned?</h2>
@@ -911,7 +1015,6 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
     </div>
   </div>
 
-  <!-- Insight + market note -->
   <div class="section">
     <div class="insight-grid fade-swap" id="insightGrid">
       <div class="insight">
@@ -925,87 +1028,22 @@ table.matrix tbody tr.clickable:hover td.ch-name::after { opacity: 0.7; }
     </div>
   </div>
 
-  <!-- Channel performance: graph first, compact table below -->
-  <div class="section">
-    <div class="section-head">
-      <h2 class="section-title">Kanal-performance · <span id="channelMonthLabel"></span></h2>
-      <span class="section-meta">12-måneders trend pr. kanal · klik kanal for at isolere</span>
-    </div>
-    <div class="card" style="padding: 18px 24px 22px;">
-      <div class="channel-chart-controls">
-        <div class="metric-switch" id="channelMetricSwitch">
-          <button data-metric="signups" class="active">Sign-ups</button>
-          <button data-metric="cost">Spend</button>
-          <button data-metric="cac">CAC</button>
-        </div>
-        <div class="channel-legend" id="channelLegend"></div>
-      </div>
-      <div class="channel-chart-wrap">
-        <canvas id="channelChart"></canvas>
-      </div>
-      <table class="channel-table-compact fade-swap" id="channelTable">
-        <thead>
-          <tr>
-            <th>Kanal · valgt måned</th>
-            <th>Sign-ups</th>
-            <th>Spend</th>
-            <th>CAC</th>
-            <th>CVR</th>
-            <th>Trafik</th>
-          </tr>
-        </thead>
-        <tbody id="channelTbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Kanal-mix for current month -->
-  <div class="section">
-    <div class="section-head">
-      <h2 class="section-title">Kanal-mix · <span id="mixMonthLabel"></span></h2>
-      <span class="section-meta">Hvor kommer spend og kunder fra?</span>
-    </div>
-    <div class="two-col fade-swap" id="mixGrid">
-      <div class="card">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">
-          Betalte kanaler
-        </div>
-        <div id="paidMetrics"></div>
-      </div>
-      <div class="card">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">
-          Partnership
-        </div>
-        <div id="partMetrics"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Vækst-initiativer -->
-  <div class="section">
-    <div class="section-head">
-      <h2 class="section-title">Vækst-initiativer</h2>
-      <span class="section-meta">Partnership-kanal &amp; Regningstjek · 3M / aktuel måned</span>
-    </div>
-    <div class="two-col fade-swap" id="growthGrid">
-      <div class="card" id="partnershipCard"></div>
-      <div class="card" id="regningstjekCard"></div>
-    </div>
-  </div>
-
   <!-- Appendix -->
+  <!-- 8) Glossary — definitioner & antagelser -->
   <div class="section">
     <div class="section-head">
-      <h2 class="section-title">Appendix · Definitioner &amp; antagelser</h2>
+      <h2 class="section-title">Glossary</h2>
+      <span class="section-meta">Definitioner, beregninger og antagelser</span>
     </div>
     <div class="card" style="font-size: 12px; color: var(--muted); line-height: 1.7;">
       <div class="two-col" style="gap: 32px;">
         <div>
           <div style="font-weight:700;color:var(--text);margin-bottom:8px;font-size:13px">Beregninger</div>
+          <div><strong>Marketing CAC</strong> = (spend − brand search) / (signups − brand-kunder)</div>
           <div><strong>Blended CAC</strong> = total marketing spend / nye kunder</div>
           <div><strong>CVR</strong> = nye kunder / trafik</div>
           <div><strong>CAC pr. kanal</strong> = kanal-spend / kanal-kunder (valgt måned)</div>
-          <div><strong>3M-vindue</strong> = bruges til partnership &amp; regningstjek</div>
+          <div><strong>3M-vindue</strong> = aktuel måned + 2 forrige (bruges til partnership &amp; regningstjek)</div>
           <div><strong>Affiliate-CAC</strong> = fast 500 kr/kunde jf. kontrakt (AdLab, Webels, eltjek24)</div>
         </div>
         <div>
@@ -1098,7 +1136,7 @@ const fmtDec = (n, d=1) => {
   return n.toLocaleString('da-DK', {minimumFractionDigits: d, maximumFractionDigits: d});
 };
 
-const delta = (cur, prev, inverse=false) => {
+const delta = (cur, prev, inverse=false, compareLabel=null) => {
   if (!prev || prev === 0 || cur === null || cur === undefined) return `<span class="delta delta-neutral">–</span>`;
   const diff = cur - prev;
   const pct = (diff / prev) * 100;
@@ -1108,7 +1146,11 @@ const delta = (cur, prev, inverse=false) => {
   if (Math.abs(pct) < 0.5) { cls = 'delta-neutral'; arrow = '→'; }
   else if (isGood) { cls = 'delta-good'; arrow = isUp ? '↑' : '↓'; }
   else { cls = 'delta-bad'; arrow = isUp ? '↑' : '↓'; }
-  return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toLocaleString('da-DK', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</span>`;
+  const badge = `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toLocaleString('da-DK', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</span>`;
+  if (compareLabel) {
+    return `<div class="delta-wrap">${badge}<span class="delta-label">vs. ${compareLabel}</span></div>`;
+  }
+  return badge;
 };
 
 const statusPill = (value, target, inverse=false, warn=0.15) => {
@@ -1125,9 +1167,8 @@ const statusPill = (value, target, inverse=false, warn=0.15) => {
 };
 
 // --- chart instances ---
-let chartSignups, chartCAC, chartSpend;
-let chartChannel;
-window.__channelMetric = 'signups';
+let chartSignups, chartCAC, chartSpend, chartActive, chartCVR, chartClientsPaid;
+let chartChannelSignups, chartChannelSpend, chartChannelCAC;
 window.__channelSolo = null;
 const CHANNEL_PALETTE = ['#033B8C', '#73D0E7', '#F5C518', '#16A34A', '#EF4444', '#7C3AED', '#0EA5E9', '#F97316'];
 
@@ -1135,13 +1176,17 @@ const baseOpts = {
   responsive: true,
   maintainAspectRatio: false,
   animation: { duration: 350 },
+  // Hover tooltip vises ved hover hvor som helst i graf-arealet,
+  // ikke kun præcist på data-punktet
+  interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { display: false },
     tooltip: {
       backgroundColor: '#101D2F',
-      titleFont: { family: 'DM Sans', size: 11, weight: '600' },
-      bodyFont: { family: 'DM Sans', size: 11 },
-      padding: 10, cornerRadius: 6, displayColors: false,
+      titleFont: { family: 'DM Sans', size: 12, weight: '600' },
+      bodyFont: { family: 'DM Sans', size: 12 },
+      padding: 12, cornerRadius: 8, displayColors: false,
+      caretSize: 6,
     }
   },
   scales: {
@@ -1207,6 +1252,54 @@ function initCharts(m) {
       scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, ticks: { ...baseOpts.scales.y.ticks, callback: v => (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) + ' kr' } } }
     }
   });
+
+  chartActive = new Chart(document.getElementById('chartActive'), {
+    type: 'line',
+    data: { labels: m.months_series, datasets: [{
+      data: m.series_active_customers || [],
+      borderColor: '#2E8BA8',
+      backgroundColor: 'rgba(46,139,168,0.18)',
+      fill: true, tension: 0.35, borderWidth: 2,
+      pointRadius: 0, pointHoverRadius: 5,
+      pointBackgroundColor: '#fff', pointBorderColor: '#2E8BA8', pointBorderWidth: 2,
+    }]},
+    options: {
+      ...baseOpts,
+      plugins: { ...baseOpts.plugins, tooltip: { ...baseOpts.plugins.tooltip, callbacks: { label: ctx => ' ' + fmtInt(ctx.parsed.y) + ' kunder' } } },
+      scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, beginAtZero: false, ticks: { ...baseOpts.scales.y.ticks, callback: v => v.toLocaleString('da-DK') } } }
+    }
+  });
+
+  chartCVR = new Chart(document.getElementById('chartCVR'), {
+    type: 'line',
+    data: { labels: m.months_series, datasets: [{
+      data: (m.series_cvr_ex_organic || []).map(v => v * 100),
+      borderColor: '#16A34A',
+      backgroundColor: 'rgba(22,163,74,0.10)',
+      fill: true, tension: 0.35, borderWidth: 2,
+      pointRadius: 0, pointHoverRadius: 5,
+      pointBackgroundColor: '#fff', pointBorderColor: '#16A34A', pointBorderWidth: 2,
+    }]},
+    options: {
+      ...baseOpts,
+      plugins: { ...baseOpts.plugins, tooltip: { ...baseOpts.plugins.tooltip, callbacks: { label: ctx => ' ' + ctx.parsed.y.toFixed(2) + '%' } } },
+      scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, ticks: { ...baseOpts.scales.y.ticks, callback: v => v.toFixed(1) + '%' } } }
+    }
+  });
+
+  chartClientsPaid = new Chart(document.getElementById('chartClientsPaid'), {
+    type: 'bar',
+    data: { labels: m.months_series, datasets: [{
+      data: m.series_clients_paid || [],
+      backgroundColor: 'rgba(3,59,140,0.72)',
+      borderRadius: 4, maxBarThickness: 28,
+    }]},
+    options: {
+      ...baseOpts,
+      plugins: { ...baseOpts.plugins, tooltip: { ...baseOpts.plugins.tooltip, callbacks: { label: ctx => ' ' + fmtInt(ctx.parsed.y) + ' betalt' } } },
+      scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, ticks: { ...baseOpts.scales.y.ticks, callback: v => v.toLocaleString('da-DK') } } }
+    }
+  });
 }
 
 function updateCharts(m) {
@@ -1214,50 +1307,25 @@ function updateCharts(m) {
   chartSignups.data.datasets[0].data = m.series_signups;
   chartSignups.update();
   chartCAC.data.labels = m.months_series;
-  chartCAC.data.datasets[0].data = m.series_cac;
+  chartCAC.data.datasets[0].data = m.series_cac_marketing;
   chartCAC.update();
   chartSpend.data.labels = m.months_series;
   chartSpend.data.datasets[0].data = m.series_spend;
   chartSpend.update();
+  chartActive.data.labels = m.months_series;
+  chartActive.data.datasets[0].data = m.series_active_customers || [];
+  chartActive.update();
+  chartCVR.data.labels = m.months_series;
+  chartCVR.data.datasets[0].data = (m.series_cvr_ex_organic || []).map(v => v * 100);
+  chartCVR.update();
+  chartClientsPaid.data.labels = m.months_series;
+  chartClientsPaid.data.datasets[0].data = m.series_clients_paid || [];
+  chartClientsPaid.update();
 }
 
 // --- KPI card generator ---
-function renderChannelChart(channels, monthPretty) {
-  const metric = window.__channelMetric || 'signups';
-  const solo = window.__channelSolo;
-  const fieldMap = {
-    signups: { field: 'hist_clients', label: 'Sign-ups', fmt: fmtInt },
-    cost:    { field: 'hist_cost',    label: 'Spend',    fmt: fmtKr  },
-    cac:     { field: 'hist_cac',     label: 'CAC',      fmt: fmtKr  },
-  };
-  const cfg = fieldMap[metric];
-  const labels = (channels[0] && channels[0].hist_labels) || [];
-  const datasets = channels.map((ch, idx) => {
-    const color = CHANNEL_PALETTE[idx % CHANNEL_PALETTE.length];
-    const isMuted = solo !== null && solo !== undefined && solo !== idx;
-    return {
-      label: ch.name,
-      data: ch[cfg.field] || [],
-      borderColor: color,
-      backgroundColor: color + '22',
-      borderWidth: isMuted ? 1.2 : 2.4,
-      borderDash: isMuted ? [3, 3] : [],
-      pointRadius: isMuted ? 0 : 2.4,
-      pointHoverRadius: 5,
-      tension: 0.32,
-      fill: false,
-      hidden: false,
-      __opacity: isMuted ? 0.25 : 1,
-    };
-  });
-  // Apply opacity via color shifting (Chart.js doesn't have per-dataset opacity directly)
-  datasets.forEach(ds => {
-    if (ds.__opacity < 1) {
-      const c = ds.borderColor;
-      ds.borderColor = c + Math.round(ds.__opacity * 255).toString(16).padStart(2, '0');
-    }
-  });
-  const opts = {
+function _buildChannelChartOpts(cfg) {
+  return {
     responsive: true,
     maintainAspectRatio: false,
     animation: { duration: 350 },
@@ -1266,9 +1334,9 @@ function renderChannelChart(channels, monthPretty) {
       legend: { display: false },
       tooltip: {
         backgroundColor: '#101D2F',
-        titleFont: { family: 'DM Sans', size: 11, weight: '600' },
-        bodyFont: { family: 'DM Sans', size: 11 },
-        padding: 10, cornerRadius: 6, displayColors: true,
+        titleFont: { family: 'DM Sans', size: 12, weight: '600' },
+        bodyFont: { family: 'DM Sans', size: 12 },
+        padding: 12, cornerRadius: 8, displayColors: true,
         callbacks: {
           label: (ctx) => `${ctx.dataset.label}: ${cfg.fmt(ctx.parsed.y)}`
         }
@@ -1290,14 +1358,64 @@ function renderChannelChart(channels, monthPretty) {
       }
     }
   };
-  if (chartChannel) chartChannel.destroy();
-  chartChannel = new Chart(document.getElementById('channelChart'), {
+}
+
+function _buildChannelDatasets(channels, field, solo) {
+  return channels.map((ch, idx) => {
+    const color = CHANNEL_PALETTE[idx % CHANNEL_PALETTE.length];
+    const isMuted = solo !== null && solo !== undefined && solo !== idx;
+    let borderColor = color;
+    if (isMuted) {
+      borderColor = color + Math.round(0.25 * 255).toString(16).padStart(2, '0');
+    }
+    return {
+      label: ch.name,
+      data: ch[field] || [],
+      borderColor: borderColor,
+      backgroundColor: color + '22',
+      borderWidth: isMuted ? 1.2 : 2.4,
+      borderDash: isMuted ? [3, 3] : [],
+      pointRadius: isMuted ? 0 : 2.4,
+      pointHoverRadius: 5,
+      tension: 0.32,
+      fill: false,
+    };
+  });
+}
+
+function renderChannelChart(channels, monthPretty) {
+  const solo = window.__channelSolo;
+  const labels = (channels[0] && channels[0].hist_labels) || [];
+
+  const cfgs = [
+    { canvas: 'channelChartSignups', chart: 'chartChannelSignups', field: 'hist_clients', fmt: fmtInt },
+    { canvas: 'channelChartSpend',   chart: 'chartChannelSpend',   field: 'hist_cost',    fmt: fmtKr  },
+    { canvas: 'channelChartCAC',     chart: 'chartChannelCAC',     field: 'hist_cac',     fmt: fmtKr  },
+  ];
+
+  // Destroy existing charts
+  if (chartChannelSignups) chartChannelSignups.destroy();
+  if (chartChannelSpend) chartChannelSpend.destroy();
+  if (chartChannelCAC) chartChannelCAC.destroy();
+
+  // Build all 3 charts
+  chartChannelSignups = new Chart(document.getElementById('channelChartSignups'), {
     type: 'line',
-    data: { labels, datasets },
-    options: opts
+    data: { labels, datasets: _buildChannelDatasets(channels, 'hist_clients', solo) },
+    options: _buildChannelChartOpts({ fmt: fmtInt })
+  });
+  chartChannelSpend = new Chart(document.getElementById('channelChartSpend'), {
+    type: 'line',
+    data: { labels, datasets: _buildChannelDatasets(channels, 'hist_cost', solo) },
+    options: _buildChannelChartOpts({ fmt: fmtKr })
+  });
+  chartChannelCAC = new Chart(document.getElementById('channelChartCAC'), {
+    type: 'line',
+    data: { labels, datasets: _buildChannelDatasets(channels, 'hist_cac', solo) },
+    options: _buildChannelChartOpts({ fmt: fmtKr })
   });
 
-  // Render legend buttons
+  // Render legend buttons (fælles for alle 3 grafer)
   const legend = document.getElementById('channelLegend');
   const buttons = channels.map((ch, idx) => {
     const color = CHANNEL_PALETTE[idx % CHANNEL_PALETTE.length];
@@ -1316,7 +1434,6 @@ function renderChannelChart(channels, monthPretty) {
       const idx = parseInt(btn.dataset.chIdx);
       window.__channelSolo = (window.__channelSolo === idx) ? null : idx;
       renderChannelChart(window.__activeChannels, monthPretty);
-      // Update table row highlight
       document.querySelectorAll('#channelTbody tr').forEach((tr, i) => {
         const isSolo = window.__channelSolo === i;
         const isMuted = window.__channelSolo !== null && window.__channelSolo !== undefined && window.__channelSolo !== i;
@@ -1335,7 +1452,6 @@ function renderChannelChart(channels, monthPretty) {
       });
     });
   }
-  // Sync table row classes
   document.querySelectorAll('#channelTbody tr').forEach((tr, i) => {
     const isSolo = solo === i;
     const isMuted = solo !== null && solo !== undefined && solo !== i;
@@ -1372,9 +1488,7 @@ function render(monthLabel) {
   // Header refs
   document.getElementById('periodLabel').textContent = pretty;
   document.getElementById('subtitleLabel').textContent = `Performance, kanal-mix og strategiske prioriteter for ${pretty}`;
-  document.getElementById('kpiMonthLabel').textContent = pretty;
   document.getElementById('kpiPrevLabel').textContent = prevPretty;
-  document.getElementById('mixMonthLabel').textContent = pretty;
 
   // Executive headline
   document.getElementById('headlineText').textContent = m.narr.headline || '';
@@ -1490,58 +1604,43 @@ function render(monthLabel) {
   }
   document.getElementById('rollingGrid').innerHTML = cells.join('');
 
-  // KPI grid
-  const kpis = [
-    kpiCard({
-      label: 'Nye kunder',
-      value: fmtInt(m.signups),
-      sub: m.crm_total
-        ? `vs. ${fmtInt(m.signups_prev)} ${delta(m.signups, m.signups_prev)} · CRM-total, heraf ${fmtInt(m.organic_unexplained)} organisk`
-        : `vs. ${fmtInt(m.signups_prev)} i ${m.prev_label || '–'} ${delta(m.signups, m.signups_prev)}`,
-      kpi: 'signups',
-    }),
-    kpiCard({
-      label: 'Aktive kunder',
-      value: m.active_customers > 0 ? fmtInt(m.active_customers) : '–',
-      sub: m.active_customers_prev > 0
-        ? `vs. ${fmtInt(m.active_customers_prev)} i ${m.prev_label || '–'} ${delta(m.active_customers, m.active_customers_prev)}`
-        : 'Total kundebase (slut af måned)',
-      kpi: m.active_customers > 0 ? 'active_customers' : null,
-    }),
-    kpiCard({
-      label: 'Marketing CAC',
-      value: fmtKr(m.cac_marketing),
-      sub: `vs. ${fmtKr(m.cac_marketing_prev)} ${delta(m.cac_marketing, m.cac_marketing_prev, true)} · Blended (inkl. organisk): ${fmtKr(m.cac)}`,
-      kpi: 'cac',
-    }),
-    kpiCard({
-      label: 'Konvertering · ekskl. organisk',
-      value: fmtPct(m.cvr_ex_organic),
-      sub: `Betalte sign-ups / betalt trafik · vs. ${fmtPct(m.cvr_ex_organic_prev)} ${delta(m.cvr_ex_organic, m.cvr_ex_organic_prev)}`,
-      kpi: 'cvr_ex_organic',
-    }),
-    kpiCard({
-      label: 'Marketing spend',
-      value: fmtKr(m.spend),
-      sub: `vs. ${fmtKr(m.spend_prev)} ${delta(m.spend, m.spend_prev, true)}`,
-      kpi: 'spend',
-    }),
-    kpiCard({
-      label: 'Sign-ups · betalt',
-      value: fmtInt(m.clients_paid),
-      sub: `Partnership: ${fmtInt(m.clients_part)} · CAC paid: ${fmtKr(m.cac_paid)}`,
-      kpi: 'clients_paid',
-    }),
-  ];
-  document.getElementById('kpiGrid').innerHTML = kpis.join('');
+  // Tilføj månedsnavn (fx "· Marts 2026") til hver KPI-label så det er eksplicit
+  // hvilken måned det store tal hører til
+  document.querySelectorAll('.trend-month-suffix').forEach(el => {
+    el.textContent = ` · ${pretty}`;
+  });
 
-  // Trend values
+  // 6 graf-kort (erstatter den gamle KPI-grid + trend-grid)
+  // Sign-ups
   document.getElementById('trendSignupsValue').textContent = fmtInt(m.signups);
-  document.getElementById('trendSignupsDelta').innerHTML = delta(m.signups, m.signups_prev);
+  document.getElementById('trendSignupsSub').innerHTML = m.crm_total
+    ? `CRM-total, heraf ${fmtInt(m.organic_unexplained)} organisk`
+    : `Forrige: ${fmtInt(m.signups_prev)} i ${m.prev_label || '–'}`;
+  document.getElementById('trendSignupsDelta').innerHTML = delta(m.signups, m.signups_prev, false, 'forrige måned');
+  // Aktive kunder
+  document.getElementById('trendActiveValue').textContent = m.active_customers > 0 ? fmtInt(m.active_customers) : '–';
+  document.getElementById('trendActiveSub').innerHTML = m.active_customers_prev > 0
+    ? `Forrige: ${fmtInt(m.active_customers_prev)} i ${m.prev_label || '–'}`
+    : 'Total kundebase';
+  document.getElementById('trendActiveDelta').innerHTML = m.active_customers_prev > 0
+    ? delta(m.active_customers, m.active_customers_prev, false, 'forrige måned')
+    : '';
+  // Marketing CAC
   document.getElementById('trendCACValue').textContent = fmtKr(m.cac_marketing);
-  document.getElementById('trendCACDelta').innerHTML = delta(m.cac_marketing, m.cac_marketing_prev, true);
+  document.getElementById('trendCACSub').innerHTML = `Forrige: ${fmtKr(m.cac_marketing_prev)} · Blended: ${fmtKr(m.cac)}`;
+  document.getElementById('trendCACDelta').innerHTML = delta(m.cac_marketing, m.cac_marketing_prev, true, 'forrige måned');
+  // CVR ekskl. organisk
+  document.getElementById('trendCVRValue').textContent = fmtPct(m.cvr_ex_organic);
+  document.getElementById('trendCVRSub').innerHTML = `Betalte sign-ups / betalt trafik · forrige: ${fmtPct(m.cvr_ex_organic_prev)}`;
+  document.getElementById('trendCVRDelta').innerHTML = delta(m.cvr_ex_organic, m.cvr_ex_organic_prev, false, 'forrige måned');
+  // Marketing spend
   document.getElementById('trendSpendValue').textContent = fmtKr(m.spend);
-  document.getElementById('trendSpendDelta').innerHTML = delta(m.spend, m.spend_prev, true);
+  document.getElementById('trendSpendSub').innerHTML = `Forrige: ${fmtKr(m.spend_prev)}`;
+  document.getElementById('trendSpendDelta').innerHTML = delta(m.spend, m.spend_prev, true, 'forrige måned');
+  // Sign-ups · betalt
+  document.getElementById('trendClientsPaidValue').textContent = fmtInt(m.clients_paid);
+  document.getElementById('trendClientsPaidSub').innerHTML = `Partnership: ${fmtInt(m.clients_part)} · CAC paid: ${fmtKr(m.cac_paid)}`;
+  document.getElementById('trendClientsPaidDelta').innerHTML = '';
 
   // Charts
   if (!chartSignups) initCharts(m); else updateCharts(m);
@@ -1590,24 +1689,7 @@ function render(monthLabel) {
     });
   });
 
-  // Kanal-mix (current month) — "Betalte kanaler" ekskluderer Brand search (semi-organic)
-  document.getElementById('paidMetrics').innerHTML = `
-    <div class="metric-row"><span class="label">Spend</span><span class="value">${fmtKr(m.cost_paid_ex_brand)}</span></div>
-    <div class="metric-row"><span class="label">Sign-ups</span><span class="value">${fmtInt(m.clients_paid_ex_brand)}</span></div>
-    <div class="metric-row"><span class="label">CAC</span><span class="value">${fmtKr(m.cac_paid_ex_brand)}</span></div>
-    <div class="metric-row"><span class="label">Trafik (betalt)</span><span class="value">${fmtInt(m.traffic_paid_ex_brand)}</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">
-      <strong style="color:var(--text)">Indeholder:</strong> Meta, Google (non-brand), LinkedIn, Youtube<br>
-      <em style="color:var(--muted)">Brand search er trukket ud (semi-organisk)</em>
-    </div>`;
-  document.getElementById('partMetrics').innerHTML = `
-    <div class="metric-row"><span class="label">Spend</span><span class="value">${fmtKr(m.cost_part)}</span></div>
-    <div class="metric-row"><span class="label">Sign-ups</span><span class="value">${fmtInt(m.clients_part)}</span></div>
-    <div class="metric-row"><span class="label">CAC</span><span class="value">${fmtKr(m.cac_part)}</span></div>
-    <div class="metric-row"><span class="label">Trafik (organic, site)</span><span class="value">${fmtInt(m.traffic_organic)}</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">
-      <strong style="color:var(--text)">Indeholder:</strong> Affiliates (AdLab, Webels, eltjek24), Influencers
-    </div>`;
+  // (Kanal-mix sektion fjernet — info findes i Kanal-performance og Nøgletal)
 
   // Partnership card (Space) — timer læses fra Input-ark (konfig.space_hours_used)
   const hoursUsed = k.space_hours_used || 0;
@@ -1849,13 +1931,6 @@ document.querySelectorAll('.trend-card[data-trend]').forEach(card => {
   });
 });
 
-// Bind KPI cards (event delegation — kort genrenderes ved månedsskift)
-document.getElementById('kpiGrid').addEventListener('click', (e) => {
-  const card = e.target.closest('.kpi-card[data-kpi]');
-  if (!card) return;
-  openTrendModal(card.dataset.kpi, document.getElementById('monthSelect').value);
-});
-
 // Bind partnership hours button (event delegation — kort genrenderes ved månedsskift)
 document.getElementById('partnershipCard').addEventListener('click', (e) => {
   if (!e.target.closest('#partnershipHoursBtn')) return;
@@ -1961,20 +2036,9 @@ monthSelect.addEventListener('change', () => {
   }, 120);
 });
 
-// --- Channel chart metric switcher ---
-document.querySelectorAll('#channelMetricSwitch button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#channelMetricSwitch button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    window.__channelMetric = btn.dataset.metric;
-    if (window.__activeChannels) {
-      const pretty = pretty_month_label_js(monthSelect.value);
-      renderChannelChart(window.__activeChannels, pretty);
-    }
-  });
-});
+// (Channel metric-switcher fjernet — alle 3 metrics vises nu side om side)
 
-// Helper used by channel chart switcher
+// Helper
 function pretty_month_label_js(label) {
   // label is like "Mar 26" — return the same since monthSelect option uses pretty form
   return monthSelect.options[monthSelect.selectedIndex].textContent;
