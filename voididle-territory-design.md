@@ -87,8 +87,8 @@
    - Neutral-tæthed: ≥ ~70 % ejerløse felter inden for radius 5.
 2. Blandt gyldige ankre vælges det nærmest **guilden med færrest naboer**
    (inden for 15 felter) → konflikt fordeles jævnt.
-3. **Valgvindue** (50×50 hexes — overvej 25×25, se åbne spørgsmål) centreret
-   om ankeret vises fuldt oplyst; spilleren vælger borgfelt frit derinde.
+3. **Valgvindue** (25×25 hexes) centreret om ankeret vises fuldt oplyst;
+   spilleren vælger borgfelt frit derinde.
    Regler: min. **2 frie felter** mellem borge; ikke oven på premium-felter.
 4. Ingen gyldige ankre → tilføj en frontier-ring til kortet og søg igen.
 5. Efter valget falmer vinduet til "sidst kendte info".
@@ -161,7 +161,7 @@ Kortstate er én tabel. Største klientopgave: pan/zoom hex-kort, mobilvenligt.
 
 | Spørgsmål | Udgangspunkt |
 |---|---|
-| Valgvinduets størrelse | 50×50 besluttet; 25×25 overvejes (mindre gratis intel) |
+| Valgvinduets størrelse | 25×25 (besluttet) |
 | Belejringsvindue | 12-24 t |
 | Mobiliserings-forsinkelse | ~1 t |
 | Bar-skalering pr. felt ejet | ubestemt — playtest |
