@@ -193,6 +193,7 @@ const CFG = {
   GARRISON: 0.35,            // forsvarets passive fremdrift
   BANNER_MULT: 1.15,
   TICK_MS: 500,
+  MARCH_MS: 3500,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
 };
 const SQ3 = Math.sqrt(3), HEX = 26;
 const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
@@ -422,19 +423,32 @@ function animateMove(u,fromQ,fromR,dur){
   u.anim={fx:p.x,fy:p.y,fk:key(fromQ,fromR),t0:Date.now(),dur:dur||450};
 }
 function tryMove(u,q,r){
-  const f=F(q,r); if(!f||u.mp<1) return false;
+  const f=F(q,r); if(!f||u.mp<1||u.marching) return false;
   if(dist(u,{q,r})!==1) return false;
   const now=Date.now();
-  if(f.owner===u.g){ animateMove(u,u.q,u.r); u.q=q;u.r=r;u.mp--; return true; }
-  // angreb: ryk ind på fremmed felt
-  if(f.protectedUntil>now) return false;
-  if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
-  if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
-  animateMove(u,u.q,u.r);
-  u.q=q;u.r=r;u.mp--;
-  if(!f.siege) startSiege(f,u.g);
-  else if(f.siege.att!==u.g && f.owner!==u.g && f.owner!==null){} // slut dig til forsvar via ejerskab
+  if(f.owner!==u.g){
+    if(f.protectedUntil>now) return false;
+    if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
+    if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
+  }
+  u.mp--;
+  u.marching={fq:u.q,fr:u.r,tq:q,tr:r,t0:now,dur:CFG.MARCH_MS};
   return true;
+}
+// Ankomst: enheden lander på feltet, og et evt. angreb (belejring) starter først her
+function tickMarches(){
+  const now=Date.now();
+  for(const u of units){
+    const m=u.marching; if(!m) continue;
+    if(now<m.t0+m.dur) continue;
+    u.marching=null; u.q=m.tq; u.r=m.tr;
+    const f=F(m.tq,m.tr);
+    if(!f||f.owner===u.g) continue;
+    const blocked=f.protectedUntil>now
+      ||(f.owner!==null&&guilds[f.owner].protectedUntil>now)
+      ||(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r);
+    if(!f.siege&&!blocked) startSiege(f,u.g);
+  }
 }
 function tickRegen(){
   const now=Date.now();
@@ -479,7 +493,7 @@ function tickAI(){
       if(pick){ g.pts-=4; pick.tower=true; }
     }
     for(const u of units.filter(x=>x.g===g.id)){
-      if(u.mp<1) continue;
+      if(u.mp<1||u.marching) continue;
       const here=F(u.q,u.r);
       if(here.siege) continue; // bliv og kæmp
       // 1) forsvar
@@ -689,6 +703,11 @@ function select(u){
   selUnit=u; selField=null; reach=new Map();
   if(!u){ setCtx('Demo · 1 spildøgn = 30 sekunder'); setActions([]); return; }
   const me=guilds.find(g=>g.player), now=Date.now();
+  if(u.marching){
+    setCtx('<b>Medlem '+(units.filter(x=>x.g===me.id).indexOf(u)+1)+'</b> · på march mod ('+u.marching.tq+','+u.marching.tr+')…');
+    setActions([{label:'🚩 Plant banner',fn:'armBanner()',gold:true}]);
+    return;
+  }
   for(const[dq,dr]of DIRS){
     const f=F(u.q+dq,u.r+dr); if(!f) continue;
     if(f.owner===u.g) reach.set(key(f.q,f.r),'move');
@@ -823,6 +842,34 @@ function draw(){
       ctx2.lineWidth=2; ctx2.stroke();
     } else tapFlash=null;
   }
+  // march-linjer: stiplet linje mod målet — man ser AT noget er på vej,
+  // men ikke hvad eller hvor mange (flere enheder på samme rute = én linje)
+  if(phase==='play'){
+    const lines={};
+    for(const u of units){
+      const m=u.marching; if(!m) continue;
+      const fk=key(m.fq,m.fr), tk=key(m.tq,m.tr);
+      if(!visSet.has(fk)&&!visSet.has(tk)) continue;
+      const id=fk+'>'+tk;
+      if(!lines[id]) lines[id]={m,own:guilds[u.g].player};
+      else lines[id].own=lines[id].own||guilds[u.g].player;
+    }
+    for(const id in lines){
+      const {m,own}=lines[id];
+      const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
+      const col=own?'#57B98ACC':'rgba(216,207,192,0.65)';
+      ctx2.beginPath(); ctx2.moveTo(a.x,a.y); ctx2.lineTo(b.x,b.y);
+      ctx2.strokeStyle=col; ctx2.lineWidth=2;
+      ctx2.setLineDash([5,6]); ctx2.lineDashOffset=-(now/55)%11;
+      ctx2.stroke(); ctx2.setLineDash([]); ctx2.lineDashOffset=0;
+      const ang=Math.atan2(b.y-a.y,b.x-a.x);
+      const tx=b.x-Math.cos(ang)*9, ty=b.y-Math.sin(ang)*9;
+      ctx2.beginPath();
+      ctx2.moveTo(tx,ty); ctx2.lineTo(tx-Math.cos(ang-0.45)*8,ty-Math.sin(ang-0.45)*8);
+      ctx2.moveTo(tx,ty); ctx2.lineTo(tx-Math.cos(ang+0.45)*8,ty-Math.sin(ang+0.45)*8);
+      ctx2.strokeStyle=col; ctx2.lineWidth=2; ctx2.stroke();
+    }
+  }
   // enheder som avatarer med glidende bevægelse
   if(phase==='play'){
     const clusters={};
@@ -830,7 +877,15 @@ function draw(){
     for(const u of units){
       const kTo=key(u.q,u.r), to=hexToPx(u.q,u.r);
       let visU=visSet.has(kTo), x=to.x, y=to.y;
-      if(u.anim){
+      if(u.marching){
+        // fjendtlige figurer er skjult under march — kun linjen afslører dem
+        if(!guilds[u.g].player) continue;
+        const m=u.marching, t=Math.min(1,(now-m.t0)/m.dur);
+        const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
+        const e=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+        x=a.x+(b.x-a.x)*e; y=a.y+(b.y-a.y)*e;
+        visU=visSet.has(key(m.fq,m.fr))||visSet.has(key(m.tq,m.tr));
+      } else if(u.anim){
         const t=(now-u.anim.t0)/u.anim.dur;
         if(t>=1) u.anim=null;
         else{
@@ -842,7 +897,7 @@ function draw(){
       }
       if(!visU) continue;
       const group=clusters[kTo];
-      if(!u.anim&&group.length>1){
+      if(!u.anim&&!u.marching&&group.length>1){
         const gi=group.indexOf(u), a=gi/group.length*Math.PI*2;
         x+=Math.cos(a)*8; y+=Math.sin(a)*5;
       }
@@ -911,7 +966,7 @@ setInterval(saveGame,5000);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveGame(); });
 setInterval(()=>{
   if(phase!=='play') return;
-  tickRegen(); tickSieges(); tickDay();
+  tickRegen(); tickMarches(); tickSieges(); tickDay();
   computeVision(); updateHud();
   if(selUnit) select(selUnit);
 },CFG.TICK_MS);
