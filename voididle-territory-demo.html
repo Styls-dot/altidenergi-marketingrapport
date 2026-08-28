@@ -193,7 +193,7 @@ const CFG = {
   GARRISON: 0.35,            // forsvarets passive fremdrift
   BANNER_MULT: 1.15,
   TICK_MS: 500,
-  MARCH_MS: 3500,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
+  MARCH_MS: 5000,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
 };
 const SQ3 = Math.sqrt(3), HEX = 26;
 const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
@@ -427,6 +427,8 @@ function tryMove(u,q,r){
   if(dist(u,{q,r})!==1) return false;
   const now=Date.now();
   if(f.owner!==u.g){
+    // kun connected angreb: målet skal grænse op til eget territorium
+    if(!DIRS.some(([dq,dr])=>{const n=F(q+dq,r+dr);return n&&n.owner===u.g;})) return false;
     if(f.protectedUntil>now) return false;
     if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
     if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
@@ -712,6 +714,7 @@ function select(u){
     const f=F(u.q+dq,u.r+dr); if(!f) continue;
     if(f.owner===u.g) reach.set(key(f.q,f.r),'move');
     else if(u.mp>0&&f.protectedUntil<=now
+      &&DIRS.some(([aq,ar])=>{const n=F(f.q+aq,f.r+ar);return n&&n.owner===u.g;})
       &&!(f.owner!==null&&guilds[f.owner].protectedUntil>now)
       &&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
       reach.set(key(f.q,f.r),'attack');
@@ -857,17 +860,11 @@ function draw(){
     for(const id in lines){
       const {m,own}=lines[id];
       const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
-      const col=own?'#57B98ACC':'rgba(216,207,192,0.65)';
       ctx2.beginPath(); ctx2.moveTo(a.x,a.y); ctx2.lineTo(b.x,b.y);
-      ctx2.strokeStyle=col; ctx2.lineWidth=2;
-      ctx2.setLineDash([5,6]); ctx2.lineDashOffset=-(now/55)%11;
+      ctx2.strokeStyle=own?'#57B98A':'rgba(232,228,216,0.85)';
+      ctx2.lineWidth=2.6;
+      ctx2.setLineDash([6,5]); ctx2.lineDashOffset=-(now/55)%11;
       ctx2.stroke(); ctx2.setLineDash([]); ctx2.lineDashOffset=0;
-      const ang=Math.atan2(b.y-a.y,b.x-a.x);
-      const tx=b.x-Math.cos(ang)*9, ty=b.y-Math.sin(ang)*9;
-      ctx2.beginPath();
-      ctx2.moveTo(tx,ty); ctx2.lineTo(tx-Math.cos(ang-0.45)*8,ty-Math.sin(ang-0.45)*8);
-      ctx2.moveTo(tx,ty); ctx2.lineTo(tx-Math.cos(ang+0.45)*8,ty-Math.sin(ang+0.45)*8);
-      ctx2.strokeStyle=col; ctx2.lineWidth=2; ctx2.stroke();
     }
   }
   // enheder som avatarer med glidende bevægelse
