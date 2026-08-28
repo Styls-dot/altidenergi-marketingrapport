@@ -1018,6 +1018,7 @@ function handleTap(sx,sy){
     const kind=reach.get(k);
     if(party&&selUnit.id===party.leader){ partyMove(c.q,c.r); select(selUnit); return; }
     if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Erobring i gang…':'Mobilisering — kampen starter om lidt'); }
+    else toast(selUnit.mp<1?'Ingen bevægelse endnu — den regenererer over tid':'Kan ikke rykke derhen lige nu');
     select(selUnit); return;
   }
   // belejret felt: åbn kamp-panelet (valg af egne enheder virker stadig nedenfor)
@@ -1088,7 +1089,23 @@ function updateSelCard(){
   document.getElementById('scMp').textContent=selUnit.marching?'på march…'
     :'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp));
 }
+let uiFocus='unit'; // 'unit' = figur-info i bunden, 'field' = felt-info/-handlinger
+function computeReach(u){
+  reach=new Map();
+  if(!u||u.marching) return;
+  const now=Date.now();
+  for(const[dq,dr]of DIRS){
+    const f=F(u.q+dq,u.r+dr); if(!f) continue;
+    if(f.owner===u.g){ if(u.mp>0) reach.set(key(f.q,f.r),'move'); }
+    else if(u.mp>0&&f.protectedUntil<=now
+      &&DIRS.some(([aq,ar])=>{const n=F(f.q+aq,f.r+ar);return n&&n.owner===u.g;})
+      &&!(f.owner!==null&&guilds[f.owner].protectedUntil>now)
+      &&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
+      reach.set(key(f.q,f.r),'attack');
+  }
+}
 function select(u){
+  uiFocus='unit';
   selUnit=u; selField=null; reach=new Map();
   updateSelCard();
   if(!u){ setCtx('Demo · 1 spildøgn = 30 sekunder'); setActions([]); return; }
@@ -1098,15 +1115,7 @@ function select(u){
     setActions([{label:'🚩 Plant banner',fn:'armBanner()',gold:true}]);
     return;
   }
-  for(const[dq,dr]of DIRS){
-    const f=F(u.q+dq,u.r+dr); if(!f) continue;
-    if(f.owner===u.g) reach.set(key(f.q,f.r),'move');
-    else if(u.mp>0&&f.protectedUntil<=now
-      &&DIRS.some(([aq,ar])=>{const n=F(f.q+aq,f.r+ar);return n&&n.owner===u.g;})
-      &&!(f.owner!==null&&guilds[f.owner].protectedUntil>now)
-      &&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
-      reach.set(key(f.q,f.r),'attack');
-  }
+  computeReach(u);
   const inParty=party&&party.members.includes(u.id);
   const isLead=party&&u.id===party.leader;
   setCtx('<b>'+(u.name||'Kriger')+'</b> · '+u.mp+'/'+CFG.MP_MAX+' bevægelse'
@@ -1121,6 +1130,7 @@ function select(u){
 }
 function armBanner(){ bannerMode=true; toast('Tap et synligt felt'); }
 function describeField(f){
+  uiFocus='field';
   const me=guilds.find(g=>g.player), now=Date.now(), k=key(f.q,f.r);
   const known=visSet.has(k)?f:(seen.get(k)||null);
   if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
@@ -1130,8 +1140,13 @@ function describeField(f){
     :visSet.has(k)&&f.fort?' · 🏰 Fort (+75% forsvar)':visSet.has(k)&&f.tower?' · 🗼 Vagttårn (syn +2)':'';
   const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
   setCtx('<b>'+who+'</b>'+typ+bld+prot);
-  // leder-handlinger på feltet: byggeordrer og angrebs-/forsvars-flag
+  // handlinger på feltet: gå/capture-ordrer, byggeordrer og flag
   const acts=[];
+  if(visSet.has(k)&&selUnit&&!selUnit.marching&&!(selUnit.q===f.q&&selUnit.r===f.r)){
+    if(f.owner===me.id) acts.push({label:'🥾 Gå hertil',fn:'routeTo('+f.q+','+f.r+',false)',gold:true});
+    else if(f.protectedUntil<=Date.now()&&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
+      acts.push({label:'⚔ Capture',fn:'routeTo('+f.q+','+f.r+',true)',gold:true});
+  }
   if(visSet.has(k)){
     const fl=flags.find(x=>x.q===f.q&&x.r===f.r);
     if(fl) acts.push({label:'✖ Fjern flag',fn:'removeFlag('+f.q+','+f.r+')'});
@@ -1144,6 +1159,57 @@ function describeField(f){
   }
   setActions(acts);
 }
+/* ============ Kø-bevægelse: "Gå hertil" / "Capture" med automatisk rute ===== */
+function routeTo(q,r,attack){
+  const u=selUnit; if(!u||u.marching) return;
+  const me=guilds.find(g=>g.player);
+  // BFS gennem eget territorium; ved angreb er målet det fremmede felt som sidste skridt
+  const startK=key(u.q,u.r);
+  const prev=new Map([[startK,null]]);
+  const queue=[{q:u.q,r:u.r}];
+  let goalK=null;
+  outer: while(queue.length){
+    const c=queue.shift();
+    for(const[dq,dr]of DIRS){
+      const nq=c.q+dq,nr=c.r+dr,k2=key(nq,nr);
+      if(prev.has(k2)) continue;
+      const f2=F(nq,nr); if(!f2) continue;
+      if(nq===q&&nr===r){
+        if(!attack&&f2.owner!==me.id) continue;
+        prev.set(k2,key(c.q,c.r)); goalK=k2; break outer;
+      }
+      if(f2.owner===me.id){ prev.set(k2,key(c.q,c.r)); queue.push({q:nq,r:nr}); }
+    }
+  }
+  if(!goalK){ toast('Ingen rute gennem eget territorium'); return; }
+  const route=[];
+  let cur=goalK;
+  while(cur&&cur!==startK){ const[a,b]=cur.split(',').map(Number); route.unshift({q:a,r:b}); cur=prev.get(cur); }
+  u.route=route;
+  toast((attack?'⚔ Erobringsordre':'🥾 På vej')+' — '+route.length+' skridt');
+  select(u);
+}
+// Ruter afvikles skridt for skridt, når figuren har bevægelse klar
+function tickRoutes(){
+  for(const u of units){
+    if(!u.route||!u.route.length||u.marching) continue;
+    if(!guilds[u.g].player){ u.route=null; continue; }
+    if(u.mp<1) continue; // vent på regen — ruten fortsætter selv
+    const next=u.route[0];
+    if(dist(u,next)!==1){ u.route=null; continue; }
+    if(party&&u.id===party.leader){
+      const members=party.members.map(id=>units.find(x=>x.id===id)).filter(Boolean);
+      if(!members.every(m=>m.q===u.q&&m.r===u.r&&m.mp>=1&&!m.marching)) continue;
+      let ok=false; for(const m of members) if(tryMove(m,next.q,next.r)) ok=true;
+      if(ok) u.route.shift(); else u.route=null;
+    } else {
+      if(tryMove(u,next.q,next.r)) u.route.shift();
+      else u.route=null; // blokeret (beskyttelse, borg mv.)
+    }
+    if(u.route&&!u.route.length){ u.route=null; if(u===selUnit) toast('Fremme ✓'); }
+  }
+}
+
 /* ============ Leder-ordrer: flag og byggeordrer direkte på feltet ============ */
 function setFlag(q,r,type){
   flags=flags.filter(x=>!(x.q===q&&x.r===r));
@@ -1414,6 +1480,14 @@ function draw(){
       ctx2.setLineDash([]); ctx2.lineDashOffset=0;
     }
   }
+  // planlagte ruter: svage guldprikker langs den valgte figurs rute
+  if(phase==='play'&&selUnit&&selUnit.route&&selUnit.route.length){
+    ctx2.fillStyle='rgba(217,164,74,0.55)';
+    for(const st of selUnit.route){
+      const rp=hexToPx(st.q,st.r);
+      ctx2.beginPath(); ctx2.arc(rp.x,rp.y,3,0,7); ctx2.fill();
+    }
+  }
   // enheder som avatarer med glidende bevægelse
   if(phase==='play'){
     const clusters={};
@@ -1563,9 +1637,12 @@ setInterval(saveGame,5000);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveGame(); });
 setInterval(()=>{
   if(phase!=='play') return;
-  tickRegen(); tickMarches(); tickSieges(); tickBuilds(); tickDay();
+  tickRegen(); tickMarches(); tickRoutes(); tickSieges(); tickBuilds(); tickDay();
   computeVision(); updateHud();
-  if(selUnit) select(selUnit);
+  if(selUnit){
+    if(uiFocus==='unit') select(selUnit);
+    else { computeReach(selUnit); updateSelCard(); } // felt i fokus: forstyr ikke handlingerne
+  }
   if(siegeView) renderSiegePanel();
 },CFG.TICK_MS);
 setInterval(()=>{ if(phase==='play') tickAI(); },2000);
