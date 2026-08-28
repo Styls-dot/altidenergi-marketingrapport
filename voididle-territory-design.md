@@ -1,176 +1,222 @@
-# Void Idle — Territoriesystem for guilds (designdokument)
+# Void Idle — Territoriesystem "Krigen om Riget" (designdokument)
 
-> Resultat af brainstorm 2026-08-28. Erstatter det nuværende guild-system
-> (level + guldkøbte bonusser) med et fælles verdenskort, hvor guilds
-> erobrer territorium, tjener opgraderingspoint og fører krig.
-> Hører hjemme i `dynastyidle`-repoet (fx `tasks/`) — ligger her, fordi
-> brainstorm-sessionen kørte på denne branch.
+> Resultat af brainstorm + feel-iterationer i demoen, senest opdateret 2026-08-28.
+> Spilbar spec: `voididle-territory-demo.html` (artifact "Krigen om Riget") —
+> demoen ER designet; dette dokument er den skriftlige udgave.
+> Skelet i spillet: `feature/territory`-grenen i dynastyidle (bag flag, se §16).
 
 ## 1. Kernen
 
 - Ét fælles, persistent hex-kort pr. sæson. Alle guilds spiller på samme kort.
-- Felter ejes af guilds. Hvert felt giver **1 opgraderingspoint pr. 24 timers
-  uafbrudt ejerskab** (premium-felttyper kan give 2).
-- Sæsonpoint bruges i territorie-opgraderingstræet (nulstilles hver sæson).
-  Ved sæsonslut udbetales en engangssum til **permanente guild-opgraderinger**
-  (se §8).
+- Felter ejes af guilds og betaler dagligt ✦-udbytte (se terræntabellen §3).
+- Sæsonpoint bruges i territorie-opgraderinger og bygninger (nulstilles hver
+  sæson); ved sæsonslut udbetales engangssum til permanente guild-opgraderinger (§10).
 - Kun guilds deltager. Spillere uden guild har ikke adgang til kortet.
+- Hver spiller har ÉN figur (avatar med navn + guild-tag) på kortet.
 
-## 2. Kortet og bevægelse
+## 2. Tre magt-typer (hentes fra karakteren i spillet)
 
-- Hex-grid. Kortet genereres pr. sæson, dimensioneret efter antal guilds,
-  og udvides med en ny kant-ring, hvis spawn-algoritmen ikke kan finde plads.
-- Kortets midte rummer de mest værdifulde felter (ruiner, spirit veins,
-  verdensboss-hex) → alle trækkes indad mod hinanden; nye guilds spawner
-  ved fronten → krig er uundgåelig, aldrig påtvunget.
-- Felttyper (differentierer på kortet, IKKE via buffs i idle-spillet):
-  - **Spirit vein**: 2 point/dag i stedet for 1
-  - **Bjerg**: forsvarsbonus (større garnison)
-  - **Vagtpost/ruin**: synsbonus eller andet kort-relateret
-- **Bevægelse**: spillere flytter sig individuelt på kortet.
-  Bevægelsespoint regenererer over tid (fx 1 pr. 4 timer, cap 6) — ingen
-  terninger. Infrastruktur-opgraderinger øger regen; portal-opgradering
-  forbinder to egne felter.
-- Man kan kun bevæge sig på egne felter — undtagen når man rykker ind på et
-  felt for at angribe det.
-- Bevægelse er synlig i realtid (langsomt; positions-tick få minutter,
-  klienten animerer) for alle, der har syn på feltet.
+| Magt | Hovedmagt på | Særlig rolle |
+|---|---|---|
+| ⚔ Combat power | Eng- og markfelter | Klassisk krig |
+| 🪓 Gather power | Skov og bjerge | Terræn-erobring |
+| 🔨 Craft power | Guldårer (spirit veins) | Opfører bygninger |
 
-## 3. Fog of war
+- På ethvert felt vælger spillet automatisk pr. kriger: **max(feltets
+  hovedmagt, 20 % af den stærkeste anden magt)**. En ren kriger kan altså
+  hugge sig gennem skov — men med 20 % styrke.
+- Kampikonet over feltet viser feltets hovedmagt: ⚔ / 🪓 / 🔨 (svingende
+  animation, så man på afstand kan se, der kæmpes — og hvilken slags kamp).
+- Bidrag pr. tick = effektiv magt / 100 × fyldrate. I spillet kobles det til
+  krigsfortjeneste fra rigtige kills/aktioner på feltet.
+- ⚔ hentes fra combat-systemet, 🪓 fra gathering-skills, 🔨 fra crafting-skills
+  (præcis formel afgøres ved portering).
 
-- Man ser altid: egne felter + felter, der støder op til dem (radius 1).
-- Egne spillere giver syn radius 1-2 omkring deres position. Hele guilden
-  deler syn.
-- **Borgen ser altid 5 felter ud til alle sider.**
-- Vagttårn (infrastruktur på et felt): syn radius 2-3.
-- Ingen global oversigt, ingen fri pan — man ser kun det, man har udforsket.
-  Tidligere sete felter vises grånet som "sidst kendte info" (kan være
-  forældet/lyve).
-- Detaljeniveau: på afstand ses kun **antal spillere + guildfarve**; navne og
-  detaljer ses kun på felter, der støder direkte op til ens egne.
-- Angreb på EGNE felter opdages altid øjeblikkeligt (man ser jo feltet).
-  Fog handler om at **se angreb komme** — syn = varselstid, fordi man kan se
-  fjender marchere. Forsvarets reelle omkostning er afstand (kan mine folk nå
-  frem?), ikke opmærksomhed.
+## 3. Kortet og terræn
 
-## 4. Erobring og belejring (PvE-kapløb — ingen PvP-motor)
+| Terræn | Udbytte | March ind | Kamp-magt | Andet |
+|---|---|---|---|---|
+| Eng (grund) | 1 ✦/døgn | 1× | ⚔ | Ren eng-tile; "fyldt" græs-tile som variation (~25 %, deterministisk hash) |
+| Mark | 2 ✦/døgn | 1× | ⚔ | Spredte enkeltfelter over hele kortet |
+| Skov | 1 ✦/døgn | 1,5× | 🪓 | Klynge-genereret |
+| Bjerg | 1 ✦/døgn | 2× | 🪓 | Kæde-genereret; +60 % garnison i forsvar |
+| Guldåre (spirit vein) | 3 ✦/døgn | 1× | 🔨 | Klumper nær kortets midte — kroneprisen |
 
-- Angriber rykker ind på målfeltet. Mod guild-ejede felter starter en
-  **mobiliserings-forsinkelse** (~1 time), før kampen går i gang; feltet
-  vises i "belejring under opsejling" for alle med syn. Neutrale felter:
-  kampen starter straks. Angreb er bindende (lille cooldown ved fortrydelse,
-  så man ikke kan fake-angribe konstant).
-- Selve belejringen er et **kapløb om at fylde sin bar** inden for et vindue
-  (12-24 timer): begge siders spillere på feltet kæmper deres normale
-  idle-combat mod feltets mobs, og kills/skade tæller som fremdrift.
-  Idle-venligt: man bidrager ved at stå der.
-- **Bar-længde skalerer med EGET antal felter** (asymmetrisk handicap):
-  stor guild = lang bar, lille guild = kort bar. Store guilds kan derfor
-  ikke billigt tromle små.
-- Kun **top-N bidrag pr. side** tæller (fx 8), så rå medlemstal ikke
-  underminerer handicappet.
-- Ingen bar fyldt ved vinduets udløb → forsvareren beholder feltet.
-- Efter en belejring (uanset udfald) er feltet **beskyttet i 2-3 dage**.
-  Neutrale felter har ingen beskyttelse.
-- **Borgen (hovedsædet) kan aldrig erobres** — en guild kan bombes tilbage
-  til borgen, men aldrig elimineres.
-- **Samlingsbanner**: lederen (og udpegede officerer) kan plante et banner på
-  et synligt felt; spillere, der står på bannerfeltet ved belejringens
-  afgørelse, får fx +15 % bidrag. Banner kan kun plantes på felter, guilden
-  kan se (ellers kan man sonde fog gratis).
+- Kortet genereres pr. sæson, dimensioneret efter antal guilds; udvides med
+  kant-ringe ved behov. Mest værdifulde felter i midten → alle trækkes indad.
+- Udbytte kræver 24 timers uafbrudt ejerskab (dræber felt-flipping).
+- Alt terræn-artwork foreligger (hex-tiles, pointy-top efter 90°-rotation).
 
-## 5. Spawn-algoritme ("ankerpunkt i konfliktbåndet")
+## 4. Bevægelse og marcher
 
-1. Server scorer ledige felter og finder et **anker**:
-   - Afstand til nærmeste eksisterende borg: **8-14 felter** (nogle dages
-     march — man møder naboen i uge 1, men kan ikke rushes dag 1).
-   - Neutral-tæthed: ≥ ~70 % ejerløse felter inden for radius 5.
-2. Blandt gyldige ankre vælges det nærmest **guilden med færrest naboer**
-   (inden for 15 felter) → konflikt fordeles jævnt.
-3. **Valgvindue** (25×25 hexes) centreret om ankeret vises fuldt oplyst;
-   spilleren vælger borgfelt frit derinde.
-   Regler: min. **2 frie felter** mellem borge; ikke oven på premium-felter.
-4. Ingen gyldige ankre → tilføj en frontier-ring til kortet og søg igen.
-5. Efter valget falmer vinduet til "sidst kendte info".
-6. **Startbeskyttelse**: nyspawnet guild er immun i fx 5 dage eller indtil
-   5 erobrede felter (først indtrufne).
+- Bevægelsespoint regenererer over tid (1 pr. 4 t, cap 6); infrastruktur-
+  opgraderinger øger regen.
+- **Et træk er en march, der tager tid** (rejsetid pr. felt; skov/bjerg 1,5×/2×).
+  Undervejs tegnes en stiplet linje fra figurens aktuelle position til målet —
+  linjen **krymper**, som figuren rykker frem.
+- Man bevæger sig kun på egne felter — undtagen det ene skridt ind på et felt,
+  man angriber.
+- **Kun connected angreb:** et felt kan kun angribes/erobres, hvis det grænser
+  op til eget territorium. Riget vokser sammenhængende; fronter og choke-points
+  betyder noget.
+- Belejringen starter først **ved ankomst** — marchen er forsvarerens varsel.
 
-## 6. Vedligehold og oprydning
+## 5. Fog of war
 
-- **Upkeep/aftagende afkast** overvejes, så imperier bliver bløde i kanterne
-  (åbent balancespørgsmål).
-- **Forfald**: felter, intet guildmedlem har besøgt/forsvaret i X dage,
-  bliver neutrale igen.
-- Guild uden aktive medlemmer i ~14 dage fjernes helt fra kortet (inkl. borg).
+- Syn: egne felter (radius 1), egne figurer (radius 1-2), borgen (radius 5),
+  vagttårn (+2 ud over normalt = radius 3). Hele guilden deler syn.
+- Ingen global oversigt eller fri pan — kun det udforskede; tidligere sete
+  felter vises grånet som "sidst kendte info" (kan være forældet).
+- Angreb på EGNE felter opdages altid øjeblikkeligt. Fog handler om at SE
+  angreb komme: syn = varselstid; forsvarets reelle omkostning er afstand.
+- **Synlighed følger feltet under figurens aktuelle position:** en fjende, der
+  marcherer hen over felter i dit syn, ses med både linje OG avatar. Kommer
+  de fra tågen, ses kun linjens spids "vokse frem" ved tågekanten (linjer
+  klippes til synlige del-stykker), og avataren dukker op, når positionen
+  krydser ind i dit syn.
+- **Fjendtlige marcher er anonyme:** flere enheder ad samme rute = én linje;
+  hverken antal eller identitet afsløres — kun retning og fremdrift.
+- Detaljeniveau: på afstand ses antal + guildfarve; navne kun på felter, der
+  støder op til ens egne.
 
-## 7. Opgraderingstræer
+## 6. Erobring og belejring (PvE-kapløb, ingen PvP-motor)
 
-- **Sæsontræ** (købes for sæsonpoint, nulstilles): Logistik + Økonomi —
-  bevægelses-regen, portaler, vagttårne, garnisonstyrke, pointindtjening,
-  billigere upkeep.
-- **Permanent træ** (købes for sæsonslut-udbetaling): Kamp — bonusserne til
-  idle-spillet, som guilds kender i dag (ATK/DEF/XP m.m. til alle medlemmer).
-  Guild-level låser rækker op; point køber dem.
-- Territoriet giver INTET direkte til idle-spillet — kun via træerne.
-  (Finjustering af indhold/priser udskudt til balancering.)
+- Angriber ankommer → mod guild-ejede felter først **mobiliserings-forsinkelse**
+  (~1 t, synlig "belejring under opsejling"); neutrale felter starter straks.
+- Belejringen er et **kapløb om at fylde sin bar** inden for et vindue (12-24 t).
+  Barens længde skalerer med EGET antal felter (asymmetrisk handicap: store
+  riger har lange barer). Kun **top-8 bidrag pr. side** tæller (valgt efter
+  effektiv magt for feltet); bidrag pr. spiller trackes.
+- **Flerparts-kapløb:** ankommer et hold til et felt med igangværende kamp,
+  får de deres egen bar (fra 0) — først fyldte bar vinder feltet, taberne
+  (inkl. andre angribere) trækkes hjem til borgen. Forsvareren vinder ved at
+  fylde sin bar eller ved vinduets udløb.
+- Forsvarerens bar fyldes af forsvarere på feltet + passiv garnison
+  (× 1,6 på bjerg, × 1,75 med fort, + garnison-opgradering).
+- Efter en belejring (uanset udfald) er feltet **beskyttet 2-3 døgn**.
+- **Borgen kan aldrig erobres** — en guild kan aldrig elimineres.
+- **Samlingsbanner** (officer+): plantes på synligt felt; +15 % bidrag for
+  egne krigere på feltet.
 
-## 8. Sæsoner
+## 7. Belejringspanel (tap på felt i kamp) — UI-spec
 
-- **30 dage** pr. sæson (kan forlænges senere). Kortet nulstilles, alle
-  spawner på ny.
-- Ved sæsonslut: hvert territorium, guilden holder, udbetaler sit **daglige
-  pointudbytte som engangssum** til det permanente træ.
-- **Anti-sniping**: et felt tæller kun i slutopgørelsen, hvis det har været
-  ejet uafbrudt i mindst 24 timer (= har betalt mindst ét dagligt point).
-  Belejringer, der kører ved sæsonslut, annulleres.
+Pr. deltagende hold, sorteret efter føring:
+- Bar i guildfarve + procent + **⏱ ETA-timer**: "fuld om X:XX" ved nuværende
+  tempo (krigere, banner, garnison/terræn/fort, evt. resterende mobilisering);
+  "⏱ i stå" ved nul fremdrift; "⏱ når det ikke" hvis tempoet ikke rækker
+  inden vinduet.
+- Krigere som rækker: navn · anvendt magt med ikon (⚔/🪓/🔨) og "(20 %)"-
+  markering ved sekundær magt · personligt bidrag i % af sidens bar.
+  Uden for top-8 vises nedtonet som "(reserve)".
+- Kapløbs-hint ved 2+ angribere; mobiliserings-nedtælling; vinduets resttid;
+  terræn/bygnings-modifikatorer. Opdateres live; lukker selv ved afgørelse.
 
-## 9. Misbrug og beskyttelse
+## 8. Bygninger (🔨 craft-arbejde)
 
-- **Én konto pr. spiller** (regel; svær at håndhæve teknisk).
-- **Adgangskrav**: guild skal have fx combat level 20-30 blandt stiftere,
-  før den kan spawne på kortet → alts koster dage af grind (bagstopper).
-- **Krigskarantæne**: nyt medlem kan først bidrage i belejringer efter
-  3-7 dage (må gerne bevæge sig/stå vagt) → lukker guild-hopperi.
-- 24-timers-reglen dræber point-farming via felt-flipping.
-- Opsplitning i flere små guilds ("delt hær") straffer sig selv: pointene
-  spredes over flere svage opgraderingstræer i stedet for ét stærkt.
-- Minimumsafstand mellem borge (2 frie felter) forhindrer klyngebyggeri.
+| Bygning | Pris | Effekt |
+|---|---|---|
+| 🗼 Vagttårn | 4 ✦ | Syn +2 ud over normalt (radius 3) fra feltet |
+| 🏰 Fort | 6 ✦ | +75 % garnison i forsvar (stakker med bjerg) |
 
-## 10. Notifikationer
+- **Leder/vice/officer placerer ordren** (betaler ✦) på et eget felt → en
+  **gennemsigtig spøgelses-udgave** af bygningen står på feltet med
+  fremdriftsbar. **Håndværkere bygger på stedet** med 🔨 craft power
+  (andre magter 20 %); hammer-animation når nogen bygger.
+- Én bygning pr. felt. Bygning mistes ved erobring; halvfærdigt byggeri
+  forfalder, hvis feltet mistes.
+- Systemet er generisk — senere bygninger (portal, garnison, borg-udvidelse)
+  er nye rækker i samme tabel. Artwork foreligger for begge + guild-borgen.
 
-- Ingen Discord. **Begivenhedslog i guild-tabben**: belejring startet,
-  felt tabt/vundet, banner plantet, fjender observeret.
-- Badge med antal ulæste på tabben. 24-timers belejringsvinduet gør
-  "opdaget ved næste login" tidsnok — passer idle-rytmen.
+## 9. Grupper (party) på kortet
 
-## 11. Byggefaser
+- Spillere kan joine et **pt**; **pt-lederen flytter hele gruppen** med ét
+  tryk. Krav: alle medlemmer står samlet og har bevægelse klar.
+- Splittes gruppen (fx tvungen retræte), må den samles igen før fælles march.
+- Medlemmer markeres visuelt (ring); leder/medlem vises i statuslinjen.
 
-1. **MVP**: kort + spawn, bevægelse, fog, erobring af neutrale felter,
-   point → sæsontræ.
-2. **Krig**: belejringer guild-mod-guild, mobiliserings-forsinkelse,
-   banner, beskyttelsesperioder, begivenhedslog.
-3. **Dybde**: felttyper, vagttårne/portaler, forfald/upkeep, sæsonslut →
-   permanent træ, evt. spejder-rolle (bevæge sig i fremmed land uden at
-   erobre; synlig og fangbar).
+## 10. Point, opgraderinger og sæsoner
 
-Teknisk: fog = server-side filtrering af hvilke felter der sendes til
-klienten. Belejringer genbruger eksisterende PvE-combat med feltmarkering.
-Kortstate er én tabel. Største klientopgave: pan/zoom hex-kort, mobilvenligt.
+- 1-3 ✦ pr. felt pr. 24 t ejerskab (terræntabellen). Sæsonpoint bruges på
+  sæsontræet (Logistik/Økonomi: bevægelses-regen, garnison, portaler …) og
+  bygninger.
+- **Sæson: 30 dage.** Kortet nulstilles, alle spawner på ny. Ved sæsonslut
+  udbetaler hvert felt, der er holdt ≥ 24 t, sit daglige udbytte som
+  engangssum til **permanente guild-opgraderinger** (Kamp-grenen — de
+  bonusser, guilds kender i dag). Anti-sniping: felter taget < 24 t før
+  slut tæller ikke; kørende belejringer annulleres.
+- Slutspurten om guldårerne er sæsonens naturlige klimaks.
 
-## 12. Åbne spørgsmål / tal til balancering
+## 11. Spawn ("ankerpunkt i konfliktbåndet") og borgen
 
-| Spørgsmål | Udgangspunkt |
+- Server finder anker: 8-14 felter fra nærmeste borg, ≥ ~70 % neutralt
+  omkring, nærmest guilden med færrest naboer (jævn konflikt).
+- Leder får et **25×25-valgvindue** oplyst omkring ankeret og placerer borgen
+  (med bekræftelses-trin og spøgelses-preview af borg-artworket). Min. 2 frie
+  felter mellem borge; ikke på guldårer. Start: borgfelt + ring 1.
+- Borgen ser altid 5 felter ud og kan aldrig erobres. Guild-borg-artwork
+  (pagode-borgen) bruges på alle borgfelter.
+- **Startbeskyttelse**: ny guild immun ~5 døgn eller til 5 erobrede felter.
+
+## 12. Vedligehold og oprydning
+
+- Felter, intet guildmedlem har besøgt/forsvaret i X døgn, forfalder til
+  neutrale; guild uden aktive medlemmer i ~14 døgn fjernes fra kortet.
+- Upkeep/aftagende afkast for store riger: åbent balancespørgsmål.
+
+## 13. Misbrug og beskyttelse
+
+- Én konto pr. spiller (regel) + adgangskrav (min. combat level for at
+  spawne) som teknisk bagstopper.
+- Krigskarantæne: nyt medlem kan først bidrage i belejringer efter 3-7 døgn.
+- 24-timers-reglen dræber point-farming; opsplitning i småguilds straffer
+  sig selv (pointene spredes over flere svage træer); min. borg-afstand
+  forhindrer klyngebyggeri.
+
+## 14. Notifikationer
+
+- Ingen Discord. **Begivenhedslog i guild-tabben** med ulæst-badge:
+  belejring startet/felt tabt/vundet, banner, byggeri, nye kapløbs-deltagere,
+  point. 24 t-vinduet gør "opdaget ved næste login" tidsnok.
+
+## 15. Aflæselighed på kortet (fastlagt i demoen)
+
+- Avatarer: spillets Character-ikon for egne figurer, navneskilt med guild-tag
+  under; fjender i guildfarve. Avatarer **mod-skaleres** (z^0,4), så de kun
+  vokser svagt med zoom. Zoom 0,35-6×; teksturer skarpe på retina (480 px
+  kilder, 12× sprite-render).
+- Belejringsbarer stables under feltet (op til 3 angribere + forsvarer);
+  erobringer giver ekspanderende ring-effekt; tryk-blink på hvert tap;
+  bekræftelses-trin på borg-placering.
+
+## 16. Implementeringsstatus og faser
+
+- **Demo (komplet spilbar spec):** alt ovenstående kører i
+  `voididle-territory-demo.html` med accelereret tid (1 døgn = 30 s) og
+  localStorage-persistens (op til 3 døgns offline-opsamling).
+- **Spillet (`feature/territory`, bag flag `territory_config.enabled`):**
+  fase-1-skelet er bygget (kort, spawn, fog, marcher u. rejsetid, simple
+  belejringer, point, admin-endpoints). Skal opdateres med: rejsetid/
+  march-linjer, kapløb, tre magt-typer, bygninger m. spøgelses-flow,
+  grupper, ETA-panel, artwork.
+- Flag er OFF som default; admins ser altid tabben; alle tal kan overstyres
+  på runtime via `territory_config` (accelereret testsæson på staging).
+
+## 17. Tal til balancering (demo-værdier → reelle udgangspunkter)
+
+| Parameter | Reelt udgangspunkt |
 |---|---|
-| Valgvinduets størrelse | 25×25 (besluttet) |
-| Belejringsvindue | 12-24 t |
-| Mobiliserings-forsinkelse | ~1 t |
-| Bar-skalering pr. felt ejet | ubestemt — playtest |
-| Top-N bidrag | 8 |
-| Beskyttelse efter belejring | 2-3 dage |
-| Startbeskyttelse | 5 dage / 5 felter |
-| Forfald (ubesøgte felter) | X dage — ubestemt |
-| Bevægelses-regen | 1 pr. 4 t, cap 6 |
-| Syn: spiller / borg / vagttårn | 1-2 / 5 / 2-3 |
-| Upkeep eller aftagende afkast | ubestemt |
-| Sæsonlængde | 30 dage (kan forlænges) |
-| "Vagt-stance" (mindre loot, +syn, alarm) | idé — ikke besluttet |
+| Døgn / sæson | 24 t / 30 døgn |
+| Bevægelses-regen / cap | 1 pr. 4 t / 6 |
+| March pr. felt (eng/skov/bjerg) | grundtid × 1 / 1,5 / 2 — grundtid afgøres i playtest |
+| Belejringsvindue / mobilisering | 12-24 t / ~1 t |
+| Bar-skalering | target × (1 + 0,35 × √(egne felter)) |
+| Top-N bidrag | 8 (efter effektiv magt) |
+| Off-power | 20 % |
+| Garnison-bonus: bjerg / fort | +60 % / +75 % |
+| Banner | +15 % |
+| Beskyttelse efter kamp / start | 2-3 døgn / 5 døgn el. 5 felter |
+| Vagttårn / fort | 4 ✦, syn +2 / 6 ✦ (byggearbejde skaleres af 🔨) |
+| Udbytte: eng / mark / guldåre | 1 / 2 / 3 ✦ pr. døgn (≥ 24 t ejerskab) |
+| Syn: figur / borg / vagttårn | 1-2 / 5 / 3 |
+| Valgvindue ved spawn | 25×25, anker 8-14 fra nærmeste borg |
+| Forfald / guild-oprydning | X døgn (ubestemt) / ~14 døgn |
