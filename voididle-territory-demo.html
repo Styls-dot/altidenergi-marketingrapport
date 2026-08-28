@@ -315,6 +315,12 @@ function loadGame(){
       const f=F(sf.q,sf.r); if(!f) continue;
       f.owner=sf.owner; f.ownedSince=sf.ownedSince; f.protectedUntil=sf.protectedUntil;
       f.tower=sf.tower; f.siege=sf.siege;
+      // konvertér gamle enkelt-angriber-belejringer til kapløbs-formatet
+      const sg=f.siege;
+      if(sg&&sg.att!==undefined&&!sg.atts){
+        sg.atts={[sg.att]:sg.aBar||0}; sg.targets={[sg.att]:sg.aTarget||1};
+        delete sg.att; delete sg.aBar; delete sg.aTarget;
+      }
     }
     guilds=s.guilds; units=s.units; banner=s.banner||null;
     // gamle gemmer mangler navne/tags — udfyld
@@ -411,15 +417,27 @@ function toast(msg){
 
 /* ================= Belejringer ================= */
 function fieldsOwned(gid){ let n=0; for(const f of fields.values()) if(f.owner===gid)n++; return n; }
+function attTarget(f,gid){
+  return (f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
+}
 function startSiege(f,gid){
   const now=Date.now();
-  const aTarget=(f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
   const dTarget=f.owner===null?0:CFG.SIEGE_BASE*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(f.owner)));
   const mob=f.owner===null?0:CFG.MOB_DELAY;
-  f.siege={att:gid,aBar:0,aTarget,dBar:0,dTarget,mobUntil:now+mob,end:now+mob+CFG.SIEGE_WINDOW};
+  f.siege={atts:{[gid]:0},targets:{[gid]:attTarget(f,gid)},dBar:0,dTarget,mobUntil:now+mob,end:now+mob+CFG.SIEGE_WINDOW};
   const me=guilds.find(g=>g.player);
   if(f.owner===me.id) log('⚠️ Belejring af dit felt ('+f.q+','+f.r+') — '+guilds[gid].name+' angriber!',true);
   else if(gid===me.id&&f.owner!==null) log('Belejring startet mod '+guilds[f.owner].name+' ved ('+f.q+','+f.r+')');
+}
+// Sen ankomst til en igangværende kamp: din side får sin egen bar — først fyldte vinder
+function joinSiege(f,gid){
+  const s=f.siege;
+  if(s.atts[gid]!==undefined) return;
+  s.atts[gid]=0; s.targets[gid]=attTarget(f,gid);
+  const me=guilds.find(g=>g.player);
+  if(gid===me.id) toast('Du er trådt ind i kapløbet om feltet ⚔');
+  if(f.owner===me.id) log('⚠️ Endnu et hold ('+guilds[gid].name+') kaster sig over ('+f.q+','+f.r+')!',true);
+  else if(s.atts[me.id]!==undefined&&gid!==me.id) log('⚠️ '+guilds[gid].name+' er trådt ind i kapløbet om ('+f.q+','+f.r+')',true);
 }
 function unitsOn(f,gid){ return units.filter(u=>u.g===gid&&u.q===f.q&&u.r===f.r); }
 function retreat(u){
@@ -427,47 +445,58 @@ function retreat(u){
   animateMove(u,u.q,u.r,700);
   u.q=g.borg.q; u.r=g.borg.r; u.goal=null;
 }
-function resolveSiege(f,won){
+function resolveSiege(f,winner){ // winner = guild-id eller null (forsvaret holdt/vinduet udløb)
   const s=f.siege, now=Date.now(), me=guilds.find(g=>g.player);
   const old=f.owner;
-  if(won){
-    for(const u of unitsOn(f,old===null?-1:old)) retreat(u);
-    f.owner=s.att; f.ownedSince=now; f.tower=false;
-    guilds[s.att].captures++;
-    fx.push({q:f.q,r:f.r,t:now,color:guilds[s.att].color});
-    if(s.att===me.id) toast(old===null?'Felt erobret ✦':'Felt erobret fra '+guilds[old].name+'!');
-    if(old===me.id) log('💔 Felt tabt ved ('+f.q+','+f.r+') til '+guilds[s.att].name,true);
-    else if(s.att===me.id&&old!==null) log('🏴 Felt erobret fra '+guilds[old].name+' ved ('+f.q+','+f.r+')');
+  if(winner!==null){
+    if(old!==null) for(const u of unitsOn(f,old)) retreat(u);
+    for(const gid in s.atts) if(+gid!==winner) for(const u of unitsOn(f,+gid)) retreat(u);
+    f.owner=winner; f.ownedSince=now; f.tower=false;
+    guilds[winner].captures++;
+    fx.push({q:f.q,r:f.r,t:now,color:guilds[winner].color});
+    if(winner===me.id) toast(old===null?'Felt erobret ✦':'Felt erobret fra '+guilds[old].name+'!');
+    else if(s.atts[me.id]!==undefined) toast('For sent — '+guilds[winner].name+' fyldte baren først');
+    if(old===me.id) log('💔 Felt tabt ved ('+f.q+','+f.r+') til '+guilds[winner].name,true);
+    else if(winner===me.id&&old!==null) log('🏴 Felt erobret fra '+guilds[old].name+' ved ('+f.q+','+f.r+')');
   } else {
-    for(const u of unitsOn(f,s.att)) retreat(u);
+    for(const gid in s.atts) for(const u of unitsOn(f,+gid)) retreat(u);
     if(old!==null) fx.push({q:f.q,r:f.r,t:now,color:guilds[old].color});
     if(old===me.id) log('🛡️ Forsvaret holdt ved ('+f.q+','+f.r+')');
-    if(s.att===me.id) toast('Belejringen slog fejl — forsvaret holdt');
+    if(s.atts[me.id]!==undefined) toast('Belejringen slog fejl — forsvaret holdt');
   }
-  if(old!==null||won) f.protectedUntil=now+CFG.PROTECT_MS;
+  if(old!==null||winner!==null) f.protectedUntil=now+CFG.PROTECT_MS;
   f.siege=null;
 }
 function tickSieges(){
   const now=Date.now(), rate=CFG.TICK_MS/1000;
+  const meId=guilds.find(g=>g.player).id;
   for(const f of fields.values()){
     const s=f.siege; if(!s) continue;
     if(now<s.mobUntil) continue;
-    let att=unitsOn(f,s.att).length;
-    if(att===0 && f.owner!==null && s.aBar===0 && now>s.mobUntil+4000){ f.siege=null; continue; }
-    att=Math.min(att,CFG.TOP_N);
-    let mult=1;
-    if(banner&&banner.q===f.q&&banner.r===f.r&&s.att===guilds.find(g=>g.player).id) mult=CFG.BANNER_MULT;
-    s.aBar+=att*CFG.FILL_PER_UNIT*mult*rate;
+    const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
+    let totalAtt=0;
+    for(const gid in s.atts){
+      const n=Math.min(unitsOn(f,+gid).length,CFG.TOP_N);
+      totalAtt+=n;
+      const mult=(bannerHere&&+gid===meId)?CFG.BANNER_MULT:1;
+      s.atts[gid]+=n*CFG.FILL_PER_UNIT*mult*rate;
+    }
+    if(f.owner!==null && totalAtt===0 && Object.values(s.atts).every(v=>v<0.01) && now>s.mobUntil+4000){ f.siege=null; continue; }
     if(f.owner!==null){
       let def=Math.min(unitsOn(f,f.owner).length,CFG.TOP_N);
-      let g=CFG.GARRISON*(1+(f.owner===guilds.find(x=>x.player).id?upgrades.garrison*0.5:0));
+      let g=CFG.GARRISON*(1+(f.owner===meId?upgrades.garrison*0.5:0));
       if(f.type==='mountain') g*=1.6;
-      if(banner&&banner.q===f.q&&banner.r===f.r&&f.owner===guilds.find(x=>x.player).id) def*=CFG.BANNER_MULT;
+      if(bannerHere&&f.owner===meId) def*=CFG.BANNER_MULT;
       s.dBar+=(def*CFG.FILL_PER_UNIT+g)*rate;
-      if(s.dBar>=s.dTarget){ resolveSiege(f,false); continue; }
+      if(s.dBar>=s.dTarget){ resolveSiege(f,null); continue; }
     }
-    if(s.aBar>=s.aTarget){ resolveSiege(f,true); continue; }
-    if(now>=s.end) resolveSiege(f,false);
+    let winner=null,best=1;
+    for(const gid in s.atts){
+      const ratio=s.atts[gid]/s.targets[gid];
+      if(ratio>=best){ best=ratio; winner=+gid; }
+    }
+    if(winner!==null){ resolveSiege(f,winner); continue; }
+    if(now>=s.end) resolveSiege(f,null);
   }
 }
 
@@ -502,10 +531,11 @@ function tickMarches(){
     u.marching=null; u.q=m.tq; u.r=m.tr;
     const f=F(m.tq,m.tr);
     if(!f||f.owner===u.g) continue;
+    if(f.siege){ joinSiege(f,u.g); continue; }
     const blocked=f.protectedUntil>now
       ||(f.owner!==null&&guilds[f.owner].protectedUntil>now)
       ||(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r);
-    if(!f.siege&&!blocked) startSiege(f,u.g);
+    if(!blocked) startSiege(f,u.g);
   }
 }
 function tickRegen(){
@@ -668,7 +698,7 @@ function renderSiegePanel(){
   if(!siegeView) return;
   const f=F(siegeView.q,siegeView.r), now=Date.now();
   if(!f||!f.siege){ closePanels(); return; }
-  const s=f.siege, att=guilds[s.att], def=f.owner!==null?guilds[f.owner]:null;
+  const s=f.siege, def=f.owner!==null?guilds[f.owner]:null;
   const me=guilds.find(g=>g.player);
   const fmt=ms=>{const t=Math.max(0,Math.round(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
   const fighters=gid=>{
@@ -685,7 +715,10 @@ function renderSiegePanel(){
   document.getElementById('sgTitle').textContent='Belejring af ('+f.q+','+f.r+')';
   let html='';
   if(now<s.mobUntil) html+='<div class="territory-hint" style="margin-bottom:6px">⌛ Mobilisering — kampen starter om '+fmt(s.mobUntil-now)+'</div>';
-  html+=side(att,s.aBar,s.aTarget,'⚔');
+  const attIds=Object.keys(s.atts).map(Number)
+    .sort((a,b)=>s.atts[b]/s.targets[b]-s.atts[a]/s.targets[a]);
+  if(attIds.length>1) html+='<div class="territory-hint" style="margin-bottom:6px">⚔ Kapløb: '+attIds.length+' hold kæmper om feltet — først fyldte bar vinder!</div>';
+  for(const gid of attIds) html+=side(guilds[gid],s.atts[gid],s.targets[gid],'⚔');
   if(def) html+=side(def,s.dBar,s.dTarget,'🛡',(f.type==='mountain'?' · bjerg-garnison +60%':''));
   else html+='<div class="sg-fighters">Neutralt område — kun vildmarkens modstand at overvinde.</div>';
   const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
@@ -936,15 +969,21 @@ function draw(){
     if(vis&&f.tower){ ctx2.fillStyle='#D9A44A'; ctx2.font='10px Poppins'; ctx2.fillText('🗼',p.x+HEX*0.42,p.y-HEX*0.42); }
     if(vis&&f.protectedUntil>now&&!isBorg){ ctx2.fillStyle='#8A958F'; ctx2.font='9px Poppins'; ctx2.fillText('🛡',p.x-HEX*0.42,p.y-HEX*0.42); }
     if(banner&&banner.q===f.q&&banner.r===f.r){ ctx2.fillStyle='#D9A44A'; ctx2.font='12px Poppins'; ctx2.fillText('🚩',p.x,p.y-HEX*0.55); }
-    // belejringsbarer
+    // belejringsbarer: én pr. angribende hold (kapløb) + evt. forsvarerens
     if(vis&&f.siege){
-      const s=f.siege, w=HEX*1.2, h=3.5, x0=p.x-w/2, y0=p.y+HEX*0.45;
-      ctx2.fillStyle='#0F1416CC'; ctx2.fillRect(x0-1,y0-1,w+2,(f.owner!==null?h*2+3:h)+2);
-      ctx2.fillStyle=guilds[s.att].color;
-      ctx2.fillRect(x0,y0,w*Math.min(1,s.aBar/s.aTarget),h);
+      const s=f.siege, w=HEX*1.2, h=3, x0=p.x-w/2;
+      const attIds=Object.keys(s.atts).slice(0,3);
+      const rows=attIds.length+(f.owner!==null?1:0);
+      let y0=p.y+HEX*0.45;
+      ctx2.fillStyle='#0F1416CC'; ctx2.fillRect(x0-1,y0-1,w+2,rows*(h+1)+1);
+      for(const gid of attIds){
+        ctx2.fillStyle=guilds[gid].color;
+        ctx2.fillRect(x0,y0,w*Math.min(1,s.atts[gid]/s.targets[gid]),h);
+        y0+=h+1;
+      }
       if(f.owner!==null){
         ctx2.fillStyle=guilds[f.owner].color;
-        ctx2.fillRect(x0,y0+h+1,w*Math.min(1,s.dBar/s.dTarget),h);
+        ctx2.fillRect(x0,y0,w*Math.min(1,s.dBar/s.dTarget),h);
       }
       if(now<s.mobUntil){
         ctx2.fillStyle='#E8E4D8'; ctx2.font='8px Poppins'; ctx2.fillText('⌛',p.x,p.y+HEX*0.2);
