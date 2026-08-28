@@ -14,7 +14,8 @@
     overflow:hidden; -webkit-user-select:none; user-select:none;
     touch-action:none;
   }
-  #map{position:fixed; inset:0; display:block; background:var(--ink)}
+  #map{position:fixed; inset:0; display:block; background:var(--ink);
+       touch-action:none; -webkit-tap-highlight-color:transparent}
   .hud{
     position:fixed; top:0; left:0; right:0; z-index:10;
     display:flex; align-items:center; gap:10px;
@@ -217,6 +218,7 @@ const seen = new Map();         // spillerens "sidst kendte info": key -> {owner
 let guilds=[], units=[], banner=null, visSet=new Set();
 let day=1, phase='intro', seasonEndAt=0, lastDayTick=0, unread=0;
 let selUnit=null, selField=null, reach=new Map(); // key -> 'move'|'attack'
+let tapFlash=null; // {q,r,t} kort blink ved hvert tryk
 let towerMode=false, bannerMode=false;
 const upgrades={boots:0, garrison:0, tower:true};
 const logs=[];
@@ -549,7 +551,8 @@ cv.addEventListener('pointermove',e=>{
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===1&&dragStart){
     const dx=e.clientX-dragStart.x, dy=e.clientY-dragStart.y;
-    if(Math.hypot(dx,dy)>6) moved=true;
+    if(Math.hypot(dx,dy)>12) moved=true;
+    if(!moved) return;
     cam.x=camStart.x-dx/cam.z; cam.y=camStart.y-dy/cam.z;
   } else if(ptrs.size===2){
     const[a,b]=[...ptrs.values()];
@@ -578,6 +581,7 @@ let placeAnchor=null;
 function handleTap(sx,sy){
   const w=screenToWorld(sx,sy), c=pxToHex(w.x,w.y), f=F(c.q,c.r);
   if(!f) return;
+  tapFlash={q:c.q,r:c.r,t:performance.now()};
   const me=guilds.find(g=>g.player);
   if(phase==='place'){
     if(dist(c,placeAnchor)>CFG.PLACE_RADIUS){ toast('Vælg inden for det oplyste område'); return; }
@@ -607,7 +611,9 @@ function handleTap(sx,sy){
     const i=selUnit&&mine.includes(selUnit)?(mine.indexOf(selUnit)+1)%mine.length:0;
     select(mine[i]); return;
   }
-  select(null); selField=f; describeField(f);
+  // tryk uden for rækkevidde: vis feltinfo, men BEHOLD valget så trækkene stadig lyser
+  selField=f; describeField(f);
+  if(selUnit) setActions([{label:'🚩 Plant banner',fn:'armBanner()',gold:true}]);
 }
 function select(u){
   selUnit=u; selField=null; reach=new Map();
@@ -709,17 +715,33 @@ function draw(){
         const ux=p.x+(gi-((Object.keys(groups).length-1)/2))*12, uy=p.y+HEX*0.18;
         ctx2.beginPath(); ctx2.arc(ux,uy,6,0,7);
         ctx2.fillStyle=g.color; ctx2.fill();
-        if(groups[gid].includes(selUnit)){ ctx2.strokeStyle='#fff'; ctx2.lineWidth=1.8; ctx2.stroke(); }
+        if(groups[gid].includes(selUnit)){
+          ctx2.strokeStyle='#D9A44A'; ctx2.lineWidth=2.5; ctx2.stroke();
+          ctx2.beginPath(); ctx2.arc(ux,uy,9.5,0,7);
+          ctx2.strokeStyle='#D9A44A88'; ctx2.lineWidth=1.5; ctx2.stroke();
+        }
         if(n>1){ ctx2.fillStyle='#0F1416'; ctx2.font='600 8px Poppins'; ctx2.fillText(n,ux,uy+0.5); }
         gi++;
       }
     }
-    // rækkevidde-highlight
+    // rækkevidde-highlight (fyld + stiplet kant, så træk er tydelige på mobil)
     if(reach.has(k)){
+      const rc=reach.get(k)==='move'?'#57B98A':'#D25B4A';
       hexPath(p.x,p.y,HEX-3);
-      ctx2.strokeStyle=reach.get(k)==='move'?'#57B98A':'#D25B4A';
-      ctx2.lineWidth=2; ctx2.setLineDash([4,3]); ctx2.stroke(); ctx2.setLineDash([]);
+      ctx2.fillStyle=rc+'26'; ctx2.fill();
+      ctx2.strokeStyle=rc; ctx2.lineWidth=2.2;
+      ctx2.setLineDash([4,3]); ctx2.stroke(); ctx2.setLineDash([]);
     }
+  }
+  // tryk-blink: hvert tap giver synlig feedback, også når intet sker
+  if(tapFlash){
+    const age=now-tapFlash.t;
+    if(age<350){
+      const p=hexToPx(tapFlash.q,tapFlash.r);
+      hexPath(p.x,p.y,HEX-2);
+      ctx2.strokeStyle='rgba(232,228,216,'+(0.7*(1-age/350)).toFixed(2)+')';
+      ctx2.lineWidth=2; ctx2.stroke();
+    } else tapFlash=null;
   }
   // placeringsring
   if(phase==='place'){
@@ -750,9 +772,9 @@ function startGame(c){
   computeVision(); updateHud();
   log('⛩ Borgen er rejst. Riget begynder her.');
   log('Spejdere melder: tre fremmede guilds har slået sig ned i tågen…');
-  toast('Tap en af dine grønne enheder for at rykke');
-  const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.1;
-  setCtx('Demo · 1 spildøgn = 30 sekunder');
+  const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.25;
+  select(units.find(u=>u.g===me.id));
+  toast('Medlem 1 er valgt — tap et oplyst nabofelt for at rykke');
 }
 
 /* ================= Paneler ================= */
