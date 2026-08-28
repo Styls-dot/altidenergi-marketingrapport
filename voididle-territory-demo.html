@@ -295,6 +295,7 @@ const AVATAR_SRC='data:image/webp;base64,UklGRgwyAABXRUJQVlA4TAAyAAAvY8AYEE0oaCN
 const avatarImg=new Image(); avatarImg.src=AVATAR_SRC;
 let towerMode=false, bannerMode=false;
 let party=null; // {leader:unitId, members:[unitIds]} — lederen flytter hele gruppen
+let flags=[];   // leder-ordrer: {q,r,type:'att'|'def'} — synlige for hele holdet
 const upgrades={boots:0, garrison:0, tower:true};
 const logs=[];
 
@@ -341,7 +342,7 @@ function saveGame(){
   if(phase!=='play') return;
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      day,lastDayTick,banner,upgrades,unread,cam,party,
+      day,lastDayTick,banner,upgrades,unread,cam,party,flags,
       logs:logs.slice(0,40),
       guilds,units,
       types:[...fields.values()].map(f=>({vein:1,mountain:2,forest:3,farm:4}[f.type]||0)),
@@ -372,6 +373,7 @@ function loadGame(){
     }
     guilds=s.guilds; units=s.units; banner=s.banner||null;
     party=(s.party&&s.party.members&&s.party.members.every(id=>s.units.some(u=>u.id===id)))?s.party:null;
+    flags=s.flags||[];
     // gamle gemmer mangler navne/tags — udfyld
     const TAGS=['JADE','STRM','AZUR','TÅGE'];
     guilds.forEach((g,i)=>{ if(!g.tag) g.tag=TAGS[i%TAGS.length]; });
@@ -774,11 +776,8 @@ const UPG=[
    buy(){upgrades.boots++;}},
   {id:'garrison', name:'Garnison', desc:'+50% passivt forsvar i belejringer pr. niveau', cost:()=>6+upgrades.garrison*3, max:3, lvl:()=>upgrades.garrison,
    buy(){upgrades.garrison++;}},
-  {id:'tower', name:'Vagttårn 🗼', desc:'Byg på eget felt: syn +2 ud over normalt (radius 3). Opføres af håndværker (🔨)', cost:()=>CFG.TOWER_COST, max:99, lvl:()=>'–',
-   buy(){towerMode='tower'; closePanels(); toast('Vælg et af dine felter til vagttårnet');}},
-  {id:'fort', name:'Fort 🏰', desc:'Byg på eget felt: +75% garnison i forsvar. Opføres af håndværker (🔨)', cost:()=>CFG.FORT_COST, max:99, lvl:()=>'–',
-   buy(){towerMode='fort'; closePanels(); toast('Vælg et af dine felter til fortet');}},
 ];
+// Bygninger placeres nu direkte: tap et eget felt → "Byg 🗼/🏰" i handlingsbjælken.
 function renderUpg(){
   const me=guilds.find(g=>g.player);
   document.getElementById('upgList').innerHTML=UPG.map(u=>{
@@ -987,15 +986,16 @@ function handleTap(sx,sy){
   }
   // belejret felt: åbn kamp-panelet (valg af egne enheder virker stadig nedenfor)
   if(f.siege&&visSet.has(key(c.q,c.r))) openSiegePanel(c.q,c.r);
-  // vælg enhed på feltet (cykl. ved gentaget tap)
+  // vælg enhed på feltet — gentagne tap cykler og ender i fravalg,
+  // så man kan komme til feltets leder-handlinger (byg/flag)
   const mine=unitsOn(f,me.id);
   if(mine.length){
-    const i=selUnit&&mine.includes(selUnit)?(mine.indexOf(selUnit)+1)%mine.length:0;
-    select(mine[i]); return;
+    const idx=selUnit?mine.indexOf(selUnit):-1;
+    if(idx===mine.length-1){ select(null); selField=f; describeField(f); return; }
+    select(mine[idx+1]); return;
   }
-  // tryk uden for rækkevidde: vis feltinfo, men BEHOLD valget så trækkene stadig lyser
+  // tryk uden for rækkevidde: vis feltinfo + leder-handlinger, behold valget
   selField=f; describeField(f);
-  if(selUnit) setActions([{label:'🚩 Plant banner',fn:'armBanner()',gold:true}]);
 }
 /* ================= Grupper (party): lederen flytter alle ================= */
 function formParty(){
@@ -1077,7 +1077,41 @@ function describeField(f){
     :visSet.has(k)&&f.fort?' · 🏰 Fort (+75% forsvar)':visSet.has(k)&&f.tower?' · 🗼 Vagttårn (syn +2)':'';
   const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
   setCtx('<b>'+who+'</b>'+typ+bld+prot);
-  setActions([]);
+  // leder-handlinger på feltet: byggeordrer og angrebs-/forsvars-flag
+  const acts=[];
+  if(visSet.has(k)){
+    const fl=flags.find(x=>x.q===f.q&&x.r===f.r);
+    if(fl) acts.push({label:'✖ Fjern flag',fn:'removeFlag('+f.q+','+f.r+')'});
+    else if(f.owner===me.id) acts.push({label:'🛡 Forsvars-flag',fn:'setFlag('+f.q+','+f.r+',\'def\')'});
+    else acts.push({label:'⚔ Angrebs-flag',fn:'setFlag('+f.q+','+f.r+',\'att\')',gold:true});
+    if(f.owner===me.id&&!f.tower&&!f.fort&&!f.building){
+      acts.push({label:'Byg 🗼 '+CFG.TOWER_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'tower\')'});
+      acts.push({label:'Byg 🏰 '+CFG.FORT_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'fort\')'});
+    }
+  }
+  setActions(acts);
+}
+/* ============ Leder-ordrer: flag og byggeordrer direkte på feltet ============ */
+function setFlag(q,r,type){
+  flags=flags.filter(x=>!(x.q===q&&x.r===r));
+  flags.push({q,r,type});
+  log((type==='att'?'⚔ Angrebs':'🛡 Forsvars')+'-flag sat ved ('+q+','+r+')');
+  toast('Flag sat — hele holdet kan se ordren');
+  const f=F(q,r); if(f) describeField(f);
+}
+function removeFlag(q,r){
+  flags=flags.filter(x=>!(x.q===q&&x.r===r));
+  const f=F(q,r); if(f) describeField(f);
+}
+function orderBuild(q,r,kind){
+  const me=guilds.find(g=>g.player), f=F(q,r), B=BUILDINGS[kind];
+  if(!f||!B||f.owner!==me.id||f.tower||f.fort||f.building){ toast('Kan ikke bygge her'); return; }
+  if(me.pts<B.cost()){ toast('Ikke nok ✦ — '+B.cost()+' kræves'); return; }
+  me.pts-=B.cost();
+  f.building={kind,progress:0,target:B.work()};
+  log('🔨 Byggeordre: '+B.name.toLowerCase()+' ved ('+q+','+r+')');
+  toast('Ordre sat — send en håndværker (🔨) hen for at bygge');
+  updateHud(); describeField(f);
 }
 
 /* ================= Rendering ================= */
@@ -1215,6 +1249,20 @@ function draw(){
     }
     if(vis&&f.protectedUntil>now&&!isBorg){ ctx2.fillStyle='#8A958F'; ctx2.font='9px Poppins'; ctx2.fillText('🛡',p.x-HEX*0.42,p.y-HEX*0.42); }
     if(banner&&banner.q===f.q&&banner.r===f.r){ ctx2.fillStyle='#D9A44A'; ctx2.font='12px Poppins'; ctx2.fillText('🚩',p.x,p.y-HEX*0.55); }
+    // leder-ordrer: ⚔ angrebs-/🛡 forsvars-flag med pulserende ring
+    if(vis){
+      const fl=flags.find(x=>x.q===f.q&&x.r===f.r);
+      if(fl){
+        ctx2.globalAlpha=0.55+0.35*Math.abs(Math.sin(now/350));
+        hexPath(p.x,p.y,HEX-4);
+        ctx2.strokeStyle=fl.type==='att'?'#D25B4A':'#57B98A';
+        ctx2.lineWidth=2; ctx2.setLineDash([3,3]); ctx2.stroke(); ctx2.setLineDash([]);
+        ctx2.globalAlpha=1;
+        ctx2.font='11px Poppins';
+        ctx2.fillStyle=fl.type==='att'?'#D25B4A':'#57B98A';
+        ctx2.fillText(fl.type==='att'?'⚔':'🛡',p.x-HEX*0.5,p.y-HEX*0.5);
+      }
+    }
     // belejringsbarer: én pr. angribende hold (kapløb) + evt. forsvarerens
     if(vis&&f.siege){
       const s=f.siege, w=HEX*1.2, h=3, x0=p.x-w/2;
