@@ -250,7 +250,7 @@ let forestSprite=null;
 forestImg.onload=()=>{ forestSprite=makeTileSprite(forestImg); };
 // For-render en tekstur klippet til hex-form én gang — billig at stemple pr. felt
 function makeTileSprite(img){
-  const S=4, w=Math.ceil(SQ3*HEX*S), h=HEX*2*S;
+  const S=8, w=Math.ceil(SQ3*HEX*S), h=HEX*2*S; // 8x: skarp helt op til maks-zoom på retina
   const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
   const g=oc.getContext('2d');
   g.beginPath();
@@ -300,7 +300,7 @@ function makeMap(){
 const F=(q,r)=>fields.get(key(q,r));
 
 /* ============ Gem/indlæs — demoen overlever genindlæsning (idle!) ============ */
-const SAVE_KEY='voididle-territory-demo-v1';
+const SAVE_KEY='voididle-territory-demo-v2'; // v2: bjergkæder på kortet + højere opløsning
 function saveGame(){
   if(phase!=='play') return;
   try{
@@ -785,7 +785,7 @@ cv.addEventListener('pointermove',e=>{
   } else if(ptrs.size===2){
     const[a,b]=[...ptrs.values()];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
-    cam.z=Math.max(.35,Math.min(2.5,z0*d/pinch0));
+    cam.z=Math.max(.35,Math.min(4,z0*d/pinch0));
   }
 });
 cv.addEventListener('pointerup',e=>{
@@ -797,7 +797,7 @@ cv.addEventListener('pointerup',e=>{
 cv.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
 cv.addEventListener('wheel',e=>{
   e.preventDefault();
-  cam.z=Math.max(.35,Math.min(2.5,cam.z*(e.deltaY<0?1.12:0.89)));
+  cam.z=Math.max(.35,Math.min(4,cam.z*(e.deltaY<0?1.12:0.89)));
 },{passive:false});
 
 function screenToWorld(sx,sy){
@@ -1166,7 +1166,7 @@ function startGame(c){
   computeVision(); updateHud();
   log('⛩ Borgen er rejst. Riget begynder her.');
   log('Spejdere melder: tre fremmede guilds har slået sig ned i tågen…');
-  const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.25;
+  const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.9;
   select(units.find(u=>u.g===me.id));
   toast('Medlem 1 er valgt — tap et oplyst nabofelt for at rykke');
 }
