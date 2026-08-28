@@ -831,10 +831,35 @@ function renderSiegePanel(){
         +'<span class="sg-fcontrib">'+pct.toFixed(1)+'%</span></div>';
     }).join('');
   };
-  const side=(g,bar,target,icon,extra)=>{
+  // fyldrate pr. sekund for en side — som tickSieges, men til ETA-visning
+  const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
+  const meG=guilds.find(g=>g.player);
+  const sideRate=(gid,isDef)=>{
+    const list=unitsOn(f,gid).sort((a,b)=>effPower(b,f).p-effPower(a,f).p).slice(0,CFG.TOP_N);
+    const mult=(bannerHere&&gid===meG.id)?CFG.BANNER_MULT:1;
+    let r2=0;
+    for(const u of list) r2+=effPower(u,f).p/100*CFG.FILL_PER_UNIT*mult;
+    if(isDef){
+      let g=CFG.GARRISON*(1+(f.owner===meG.id?upgrades.garrison*0.5:0));
+      if(f.type==='mountain') g*=1.6;
+      if(f.fort) g*=CFG.FORT_MULT;
+      r2+=g;
+    }
+    return r2;
+  };
+  const etaText=(gid,bar,target,isDef)=>{
+    const r2=sideRate(gid,isDef);
+    if(r2<=0) return '<span style="color:var(--muted)">⏱ i stå</span>';
+    const mobRem=Math.max(0,s.mobUntil-now);
+    const finishAt=now+mobRem+(target-bar)/r2*1000;
+    if(finishAt>s.end) return '<span style="color:var(--muted)">⏱ når det ikke</span>';
+    return '⏱ fuld om '+fmt(finishAt-now);
+  };
+  const side=(g,bar,target,icon,extra,isDef)=>{
     const pct=Math.min(100,bar/target*100);
     return '<div class="sg-side">'
-      +'<div class="sg-head"><span style="color:'+g.color+'">'+icon+' '+g.name+' ['+(g.tag||'')+']</span><span>'+Math.round(pct)+'%</span></div>'
+      +'<div class="sg-head"><span style="color:'+g.color+'">'+icon+' '+g.name+' ['+(g.tag||'')+']</span>'
+      +'<span>'+Math.round(pct)+'% · '+etaText(g.id,bar,target,isDef)+'</span></div>'
       +'<div class="sg-bar"><div class="sg-fill" style="width:'+pct+'%;background:'+g.color+'"></div></div>'
       +fighterRows(g.id,target)
       +(extra?'<div class="sg-fighters">'+extra+'</div>':'')+'</div>';
@@ -847,9 +872,8 @@ function renderSiegePanel(){
   if(attIds.length>1) html+='<div class="territory-hint" style="margin-bottom:6px">⚔ Kapløb: '+attIds.length+' hold kæmper om feltet — først fyldte bar vinder!</div>';
   for(const gid of attIds) html+=side(guilds[gid],s.atts[gid],s.targets[gid],'⚔');
   if(def) html+=side(def,s.dBar,s.dTarget,'🛡',
-    ((f.type==='mountain'?' · bjerg-garnison +60%':'')+(f.fort?' · 🏰 fort +75%':''))||'');
+    ((f.type==='mountain'?' · bjerg-garnison +60%':'')+(f.fort?' · 🏰 fort +75%':''))||'',true);
   else html+='<div class="sg-fighters">Neutralt område — kun vildmarkens modstand at overvinde.</div>';
-  const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
   html+='<div class="sg-meta"><span>Vinduet slutter om '+fmt(s.end-now)+'</span>'
     +(bannerHere?'<span>🚩 Banner: +15% bidrag for '+me.name+'</span>':'')
     +((f.type==='forest'||f.type==='mountain')?'<span>🪓 '+(f.type==='forest'?'Skov':'Bjerg')+': erobres med gather skills (andet tæller 20%)</span>':'')
