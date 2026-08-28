@@ -210,6 +210,7 @@ const CFG = {
   FILL_PER_UNIT: 1,          // fremdrift pr. enhed pr. tick
   GARRISON: 0.35,            // forsvarets passive fremdrift
   BANNER_MULT: 1.15,
+  OFF_POWER: 0.2,            // modsat magt-type kan bruges med 20% styrke
   TICK_MS: 500,
   MARCH_MS: 5000,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
 };
@@ -366,6 +367,7 @@ function loadGame(){
     units.forEach((u,i)=>{
       if(!u.name) u.name=NAMES[i%NAMES.length];
       if(!u.cp) u.cp=80+Math.floor(Math.random()*81);
+      if(!u.lp) u.lp=80+Math.floor(Math.random()*81);
     });
     Object.assign(upgrades,s.upgrades||{});
     logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
@@ -421,7 +423,7 @@ function foundGuild(name,color,tag,borgCell,isPlayer){
   const n=isPlayer?4:3;
   for(let i=0;i<n;i++)
     units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:Date.now(),goal:null,
-                name:NAMES[nameIdx++%NAMES.length],cp:80+Math.floor(Math.random()*81)});
+                name:NAMES[nameIdx++%NAMES.length],cp:80+Math.floor(Math.random()*81),lp:80+Math.floor(Math.random()*81)});
   return g;
 }
 
@@ -457,6 +459,19 @@ function toast(msg){
 
 /* ================= Belejringer ================= */
 function fieldsOwned(gid){ let n=0; for(const f of fields.values()) if(f.owner===gid)n++; return n; }
+// Skov/bjerg erobres med life skill power (økse); andre felter med combat power (sværd).
+// Den modsatte magt kan altid bruges med 20% styrke — spillet vælger det bedste pr. kriger.
+function effPower(u,f){
+  const lifeTile=f.type==='forest'||f.type==='mountain';
+  const cp=u.cp||100, lp=u.lp||100;
+  const main=lifeTile?lp:cp, off=(lifeTile?cp:lp)*CFG.OFF_POWER;
+  const usingMain=main>=off;
+  return {
+    p: usingMain?main:off,
+    icon: (lifeTile===usingMain)?'🪓':'⚔', // hvilken magt der reelt bruges
+    offUsed: !usingMain,
+  };
+}
 function attTarget(f,gid){
   return (f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
 }
@@ -515,7 +530,7 @@ function tickSieges(){
     if(now<s.mobUntil) continue;
     const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
     s.contrib=s.contrib||{}; // bidrag pr. spiller (unit-id -> progress)
-    const topUnits=gid=>unitsOn(f,gid).sort((a,b)=>(b.cp||100)-(a.cp||100)).slice(0,CFG.TOP_N);
+    const topUnits=gid=>unitsOn(f,gid).sort((a,b)=>effPower(b,f).p-effPower(a,f).p).slice(0,CFG.TOP_N);
     let totalAtt=0;
     for(const gid in s.atts){
       const list=topUnits(+gid);
@@ -523,7 +538,7 @@ function tickSieges(){
       const mult=(bannerHere&&+gid===meId)?CFG.BANNER_MULT:1;
       let add=0;
       for(const u of list){
-        const c=(u.cp||100)/100*CFG.FILL_PER_UNIT*mult*rate; // combat power skalerer bidraget
+        const c=effPower(u,f).p/100*CFG.FILL_PER_UNIT*mult*rate; // felttypen afgør magt-typen
         add+=c; s.contrib[u.id]=(s.contrib[u.id]||0)+c;
       }
       s.atts[gid]+=add;
@@ -533,7 +548,7 @@ function tickSieges(){
       const dMult=(bannerHere&&f.owner===meId)?CFG.BANNER_MULT:1;
       let dAdd=0;
       for(const u of topUnits(f.owner)){
-        const c=(u.cp||100)/100*CFG.FILL_PER_UNIT*dMult*rate;
+        const c=effPower(u,f).p/100*CFG.FILL_PER_UNIT*dMult*rate;
         dAdd+=c; s.contrib[u.id]=(s.contrib[u.id]||0)+c;
       }
       let g=CFG.GARRISON*(1+(f.owner===meId?upgrades.garrison*0.5:0));
@@ -753,15 +768,16 @@ function renderSiegePanel(){
   const me=guilds.find(g=>g.player);
   const fmt=ms=>{const t=Math.max(0,Math.round(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
   const fighterRows=(gid,target)=>{
-    const list=unitsOn(f,gid).sort((a,b)=>(b.cp||100)-(a.cp||100));
+    const list=unitsOn(f,gid).sort((a,b)=>effPower(b,f).p-effPower(a,f).p);
     if(!list.length) return '<div class="sg-fighters">Ingen krigere på feltet</div>';
     return list.map((u,i)=>{
       const c=(s.contrib&&s.contrib[u.id])||0;
       const pct=target>0?Math.min(100,c/target*100):0;
+      const e=effPower(u,f);
       const over=i>=CFG.TOP_N?' style="opacity:.45"':''; // uden for top-8 tæller ikke
       return '<div class="sg-fighter"'+over+'>'
         +'<span class="sg-fname">'+(u.name||'Kriger')+(i>=CFG.TOP_N?' (reserve)':'')+'</span>'
-        +'<span class="sg-fcp">⚔ '+(u.cp||100)+'</span>'
+        +'<span class="sg-fcp">'+e.icon+' '+Math.round(e.p)+(e.offUsed?' <small>(20%)</small>':'')+'</span>'
         +'<span class="sg-fcontrib">'+pct.toFixed(1)+'%</span></div>';
     }).join('');
   };
@@ -785,7 +801,7 @@ function renderSiegePanel(){
   const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
   html+='<div class="sg-meta"><span>Vinduet slutter om '+fmt(s.end-now)+'</span>'
     +(bannerHere?'<span>🚩 Banner: +15% bidrag for '+me.name+'</span>':'')
-    +(f.type==='forest'?'<span>🌲 Skov</span>':'')+'</div>';
+    +((f.type==='forest'||f.type==='mountain')?'<span>🪓 '+(f.type==='forest'?'Skov':'Bjerg')+': erobres med life skills (combat tæller 20%)</span>':'')+'</div>';
   document.getElementById('sgBody').innerHTML=html;
 }
 
@@ -934,7 +950,7 @@ function describeField(f){
   const known=visSet.has(k)?f:(seen.get(k)||null);
   if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
   const who=known.owner===null?'Neutralt':(guilds[known.owner].name+(visSet.has(k)?'':' <i>(sidst kendte info)</i>'));
-  const typ=known.type==='vein'?' · Spirit vein (3 ✦/døgn)':known.type==='farm'?' · Mark (2 ✦/døgn)':known.type==='mountain'?' · Bjerg (stærkt forsvar, tung march)':known.type==='forest'?' · Skov (langsom march)':'';
+  const typ=known.type==='vein'?' · Spirit vein (3 ✦/døgn)':known.type==='farm'?' · Mark (2 ✦/døgn)':known.type==='mountain'?' · Bjerg 🪓 (life skills, stærkt forsvar, tung march)':known.type==='forest'?' · Skov 🪓 (life skills, langsom march)':'';
   const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
   setCtx('<b>'+who+'</b>'+typ+prot);
   setActions([]);
@@ -1061,7 +1077,8 @@ function draw(){
         ctx2.rotate(Math.sin(now/160)*0.55);
         ctx2.font='13px Poppins'; ctx2.fillStyle='#E8E4D8';
         ctx2.shadowColor='rgba(0,0,0,0.6)'; ctx2.shadowBlur=3;
-        ctx2.fillText('⚔',0,0);
+        // skov/bjerg erobres med life skills: svingende økse i stedet for sværd
+        ctx2.fillText((f.type==='forest'||f.type==='mountain')?'🪓':'⚔',0,0);
         ctx2.restore();
       }
     }
