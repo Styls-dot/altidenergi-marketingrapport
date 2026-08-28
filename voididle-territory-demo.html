@@ -1031,15 +1031,29 @@ function draw(){
       else{ lines[id].own=lines[id].own||guilds[u.g].player; lines[id].e=Math.max(lines[id].e,e); }
     }
     for(const id in lines){
-      // linjen udgår fra figurens aktuelle position og krymper mod målet
+      // linjen udgår fra figurens aktuelle position og krymper mod målet —
+      // og klippes ved tågekanten: kun de stykker, der løber gennem dit syn, tegnes
       const {m,own,e}=lines[id];
       const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
       const sx=a.x+(b.x-a.x)*e, sy=a.y+(b.y-a.y)*e;
-      ctx2.beginPath(); ctx2.moveTo(sx,sy); ctx2.lineTo(b.x,b.y);
+      const N=10; let run=null; const runs=[];
+      for(let i=0;i<=N;i++){
+        const t=i/N, px=sx+(b.x-sx)*t, py=sy+(b.y-sy)*t;
+        const hc=pxToHex(px,py);
+        if(visSet.has(key(hc.q,hc.r))){
+          if(!run) run={x0:px,y0:py};
+          run.x1=px; run.y1=py;
+        } else if(run){ runs.push(run); run=null; }
+      }
+      if(run) runs.push(run);
+      if(!runs.length) continue;
       ctx2.strokeStyle=own?'#57B98A':'rgba(232,228,216,0.85)';
       ctx2.lineWidth=2.6;
       ctx2.setLineDash([6,5]); ctx2.lineDashOffset=-(now/55)%11;
-      ctx2.stroke(); ctx2.setLineDash([]); ctx2.lineDashOffset=0;
+      for(const r of runs){
+        ctx2.beginPath(); ctx2.moveTo(r.x0,r.y0); ctx2.lineTo(r.x1,r.y1); ctx2.stroke();
+      }
+      ctx2.setLineDash([]); ctx2.lineDashOffset=0;
     }
   }
   // enheder som avatarer med glidende bevægelse
@@ -1050,13 +1064,18 @@ function draw(){
       const kTo=key(u.q,u.r), to=hexToPx(u.q,u.r);
       let visU=visSet.has(kTo), x=to.x, y=to.y;
       if(u.marching){
-        // fjendtlige figurer er skjult under march — kun linjen afslører dem
-        if(!guilds[u.g].player) continue;
         const m=u.marching, t=Math.min(1,(now-m.t0)/m.dur);
         const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
-        const e=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+        const e=easeIO(t);
         x=a.x+(b.x-a.x)*e; y=a.y+(b.y-a.y)*e;
-        visU=visSet.has(key(m.fq,m.fr))||visSet.has(key(m.tq,m.tr));
+        if(guilds[u.g].player){
+          visU=visSet.has(key(m.fq,m.fr))||visSet.has(key(m.tq,m.tr));
+        } else {
+          // fjender ses kun, når deres position står på et felt i dit syn —
+          // træder de ud af tågen, dukker figuren op
+          const hc=pxToHex(x,y);
+          visU=visSet.has(key(hc.q,hc.r));
+        }
       } else if(u.anim){
         const t=(now-u.anim.t0)/u.anim.dur;
         if(t>=1) u.anim=null;
