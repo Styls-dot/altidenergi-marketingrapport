@@ -76,6 +76,12 @@
   .sg-bar{height:9px; border-radius:4px; background:var(--ink); border:1px solid var(--line); overflow:hidden}
   .sg-fill{height:100%; transition:width .4s}
   .sg-fighters{font-size:11.5px; color:var(--muted); margin-top:4px}
+  .sg-fighter{display:flex; align-items:baseline; gap:8px; font-size:11.5px; padding:3px 0;
+    border-top:1px solid rgba(255,255,255,0.04)}
+  .sg-fighter:first-of-type{border-top:0; margin-top:4px}
+  .sg-fname{flex:1; color:var(--text)}
+  .sg-fcp{color:var(--gold); font-variant-numeric:tabular-nums}
+  .sg-fcontrib{color:var(--muted); font-variant-numeric:tabular-nums; min-width:44px; text-align:right}
   .sg-meta{font-size:11.5px; color:var(--muted); margin-top:10px; display:flex; gap:12px; flex-wrap:wrap}
   .logrow{padding:7px 0; border-top:1px solid var(--line); font-size:12.5px; display:flex; gap:8px}
   .logrow .d{color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 auto}
@@ -357,7 +363,10 @@ function loadGame(){
     // gamle gemmer mangler navne/tags — udfyld
     const TAGS=['JADE','STRM','AZUR','TÅGE'];
     guilds.forEach((g,i)=>{ if(!g.tag) g.tag=TAGS[i%TAGS.length]; });
-    units.forEach((u,i)=>{ if(!u.name) u.name=NAMES[i%NAMES.length]; });
+    units.forEach((u,i)=>{
+      if(!u.name) u.name=NAMES[i%NAMES.length];
+      if(!u.cp) u.cp=80+Math.floor(Math.random()*81);
+    });
     Object.assign(upgrades,s.upgrades||{});
     logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
     day=s.day||1;
@@ -412,7 +421,7 @@ function foundGuild(name,color,tag,borgCell,isPlayer){
   const n=isPlayer?4:3;
   for(let i=0;i<n;i++)
     units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:Date.now(),goal:null,
-                name:NAMES[nameIdx++%NAMES.length]});
+                name:NAMES[nameIdx++%NAMES.length],cp:80+Math.floor(Math.random()*81)});
   return g;
 }
 
@@ -505,20 +514,31 @@ function tickSieges(){
     const s=f.siege; if(!s) continue;
     if(now<s.mobUntil) continue;
     const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
+    s.contrib=s.contrib||{}; // bidrag pr. spiller (unit-id -> progress)
+    const topUnits=gid=>unitsOn(f,gid).sort((a,b)=>(b.cp||100)-(a.cp||100)).slice(0,CFG.TOP_N);
     let totalAtt=0;
     for(const gid in s.atts){
-      const n=Math.min(unitsOn(f,+gid).length,CFG.TOP_N);
-      totalAtt+=n;
+      const list=topUnits(+gid);
+      totalAtt+=list.length;
       const mult=(bannerHere&&+gid===meId)?CFG.BANNER_MULT:1;
-      s.atts[gid]+=n*CFG.FILL_PER_UNIT*mult*rate;
+      let add=0;
+      for(const u of list){
+        const c=(u.cp||100)/100*CFG.FILL_PER_UNIT*mult*rate; // combat power skalerer bidraget
+        add+=c; s.contrib[u.id]=(s.contrib[u.id]||0)+c;
+      }
+      s.atts[gid]+=add;
     }
     if(f.owner!==null && totalAtt===0 && Object.values(s.atts).every(v=>v<0.01) && now>s.mobUntil+4000){ f.siege=null; continue; }
     if(f.owner!==null){
-      let def=Math.min(unitsOn(f,f.owner).length,CFG.TOP_N);
+      const dMult=(bannerHere&&f.owner===meId)?CFG.BANNER_MULT:1;
+      let dAdd=0;
+      for(const u of topUnits(f.owner)){
+        const c=(u.cp||100)/100*CFG.FILL_PER_UNIT*dMult*rate;
+        dAdd+=c; s.contrib[u.id]=(s.contrib[u.id]||0)+c;
+      }
       let g=CFG.GARRISON*(1+(f.owner===meId?upgrades.garrison*0.5:0));
       if(f.type==='mountain') g*=1.6;
-      if(bannerHere&&f.owner===meId) def*=CFG.BANNER_MULT;
-      s.dBar+=(def*CFG.FILL_PER_UNIT+g)*rate;
+      s.dBar+=dAdd+g*rate;
       if(s.dBar>=s.dTarget){ resolveSiege(f,null); continue; }
     }
     let winner=null,best=1;
@@ -732,16 +752,26 @@ function renderSiegePanel(){
   const s=f.siege, def=f.owner!==null?guilds[f.owner]:null;
   const me=guilds.find(g=>g.player);
   const fmt=ms=>{const t=Math.max(0,Math.round(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
-  const fighters=gid=>{
-    const list=unitsOn(f,gid).slice(0,CFG.TOP_N).map(u=>u.name||'Kriger');
-    return list.length?list.join(', ')+' ('+list.length+')':'ingen på feltet';
+  const fighterRows=(gid,target)=>{
+    const list=unitsOn(f,gid).sort((a,b)=>(b.cp||100)-(a.cp||100));
+    if(!list.length) return '<div class="sg-fighters">Ingen krigere på feltet</div>';
+    return list.map((u,i)=>{
+      const c=(s.contrib&&s.contrib[u.id])||0;
+      const pct=target>0?Math.min(100,c/target*100):0;
+      const over=i>=CFG.TOP_N?' style="opacity:.45"':''; // uden for top-8 tæller ikke
+      return '<div class="sg-fighter"'+over+'>'
+        +'<span class="sg-fname">'+(u.name||'Kriger')+(i>=CFG.TOP_N?' (reserve)':'')+'</span>'
+        +'<span class="sg-fcp">⚔ '+(u.cp||100)+'</span>'
+        +'<span class="sg-fcontrib">'+pct.toFixed(1)+'%</span></div>';
+    }).join('');
   };
   const side=(g,bar,target,icon,extra)=>{
     const pct=Math.min(100,bar/target*100);
     return '<div class="sg-side">'
       +'<div class="sg-head"><span style="color:'+g.color+'">'+icon+' '+g.name+' ['+(g.tag||'')+']</span><span>'+Math.round(pct)+'%</span></div>'
       +'<div class="sg-bar"><div class="sg-fill" style="width:'+pct+'%;background:'+g.color+'"></div></div>'
-      +'<div class="sg-fighters">Krigere: '+fighters(g.id)+(extra||'')+'</div></div>';
+      +fighterRows(g.id,target)
+      +(extra?'<div class="sg-fighters">'+extra+'</div>':'')+'</div>';
   };
   document.getElementById('sgTitle').textContent='Belejring af ('+f.q+','+f.r+')';
   let html='';
