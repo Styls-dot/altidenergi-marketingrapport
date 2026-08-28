@@ -71,6 +71,12 @@
   .row .t{flex:1; min-width:0}
   .row .t b{display:block; font-weight:500; font-size:13px}
   .row .t span{font-size:11.5px; color:var(--muted)}
+  .sg-side{margin:10px 0}
+  .sg-head{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; font-weight:500}
+  .sg-bar{height:9px; border-radius:4px; background:var(--ink); border:1px solid var(--line); overflow:hidden}
+  .sg-fill{height:100%; transition:width .4s}
+  .sg-fighters{font-size:11.5px; color:var(--muted); margin-top:4px}
+  .sg-meta{font-size:11.5px; color:var(--muted); margin-top:10px; display:flex; gap:12px; flex-wrap:wrap}
   .logrow{padding:7px 0; border-top:1px solid var(--line); font-size:12.5px; display:flex; gap:8px}
   .logrow .d{color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 auto}
   .logrow.warn{color:#E8A29A}
@@ -133,6 +139,12 @@
   <div id="upgList"></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
   <button class="abtn" style="width:100%;margin-top:8px;color:var(--cinnabar)" onclick="resetDemo()">Nulstil demoen (start forfra)</button>
+</div>
+
+<div class="panel" id="pSiege">
+  <h2 id="sgTitle">Belejring</h2>
+  <div id="sgBody"></div>
+  <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
 </div>
 
 <div class="panel" id="pLog">
@@ -305,6 +317,10 @@ function loadGame(){
       f.tower=sf.tower; f.siege=sf.siege;
     }
     guilds=s.guilds; units=s.units; banner=s.banner||null;
+    // gamle gemmer mangler navne/tags — udfyld
+    const TAGS=['JADE','STRM','AZUR','TÅGE'];
+    guilds.forEach((g,i)=>{ if(!g.tag) g.tag=TAGS[i%TAGS.length]; });
+    units.forEach((u,i)=>{ if(!u.name) u.name=NAMES[i%NAMES.length]; });
     Object.assign(upgrades,s.upgrades||{});
     logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
     day=s.day||1;
@@ -347,8 +363,10 @@ function pickAnchor(){
   cands.sort((a,b)=>b.score-a.score);
   return cands[0].f;
 }
-function foundGuild(name,color,borgCell,isPlayer){
-  const g={id:guilds.length,name,color,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
+const NAMES=['Li Wei','Mei Lin','Feng Yu','Shen Hao','Xiao Lan','Zhao Jun','Han Qing','Yun Zhi','Bai Xue','Tao Ren','Jin Hua','Lu Chen','Wu Kang','Su Yan','Guo Fei','Ding Mo'];
+let nameIdx=0;
+function foundGuild(name,color,tag,borgCell,isPlayer){
+  const g={id:guilds.length,name,color,tag,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
            player:!!isPlayer, protectedUntil:Date.now()+CFG.START_PROTECT_MS, captures:0};
   guilds.push(g);
   for(const c of disc(borgCell,1)){
@@ -356,7 +374,8 @@ function foundGuild(name,color,borgCell,isPlayer){
   }
   const n=isPlayer?4:3;
   for(let i=0;i<n;i++)
-    units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:Date.now(),goal:null});
+    units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:Date.now(),goal:null,
+                name:NAMES[nameIdx++%NAMES.length]});
   return g;
 }
 
@@ -633,6 +652,47 @@ function buyUpg(id){
 function closePanels(){
   document.getElementById('pUpg').classList.remove('open');
   document.getElementById('pLog').classList.remove('open');
+  document.getElementById('pSiege').classList.remove('open');
+  siegeView=null;
+}
+
+/* ================= Belejringspanel ================= */
+let siegeView=null;
+function openSiegePanel(q,r){
+  closePanels();
+  siegeView={q,r};
+  renderSiegePanel();
+  document.getElementById('pSiege').classList.add('open');
+}
+function renderSiegePanel(){
+  if(!siegeView) return;
+  const f=F(siegeView.q,siegeView.r), now=Date.now();
+  if(!f||!f.siege){ closePanels(); return; }
+  const s=f.siege, att=guilds[s.att], def=f.owner!==null?guilds[f.owner]:null;
+  const me=guilds.find(g=>g.player);
+  const fmt=ms=>{const t=Math.max(0,Math.round(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+  const fighters=gid=>{
+    const list=unitsOn(f,gid).slice(0,CFG.TOP_N).map(u=>u.name||'Kriger');
+    return list.length?list.join(', ')+' ('+list.length+')':'ingen på feltet';
+  };
+  const side=(g,bar,target,icon,extra)=>{
+    const pct=Math.min(100,bar/target*100);
+    return '<div class="sg-side">'
+      +'<div class="sg-head"><span style="color:'+g.color+'">'+icon+' '+g.name+' ['+(g.tag||'')+']</span><span>'+Math.round(pct)+'%</span></div>'
+      +'<div class="sg-bar"><div class="sg-fill" style="width:'+pct+'%;background:'+g.color+'"></div></div>'
+      +'<div class="sg-fighters">Krigere: '+fighters(g.id)+(extra||'')+'</div></div>';
+  };
+  document.getElementById('sgTitle').textContent='Belejring af ('+f.q+','+f.r+')';
+  let html='';
+  if(now<s.mobUntil) html+='<div class="territory-hint" style="margin-bottom:6px">⌛ Mobilisering — kampen starter om '+fmt(s.mobUntil-now)+'</div>';
+  html+=side(att,s.aBar,s.aTarget,'⚔');
+  if(def) html+=side(def,s.dBar,s.dTarget,'🛡',(f.type==='mountain'?' · bjerg-garnison +60%':''));
+  else html+='<div class="sg-fighters">Neutralt område — kun vildmarkens modstand at overvinde.</div>';
+  const bannerHere=banner&&banner.q===f.q&&banner.r===f.r;
+  html+='<div class="sg-meta"><span>Vinduet slutter om '+fmt(s.end-now)+'</span>'
+    +(bannerHere?'<span>🚩 Banner: +15% bidrag for '+me.name+'</span>':'')
+    +(f.type==='forest'?'<span>🌲 Skov</span>':'')+'</div>';
+  document.getElementById('sgBody').innerHTML=html;
 }
 
 /* ================= HUD ================= */
@@ -732,6 +792,8 @@ function handleTap(sx,sy){
     if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Erobring i gang…':'Mobilisering — kampen starter om lidt'); }
     select(selUnit); return;
   }
+  // belejret felt: åbn kamp-panelet (valg af egne enheder virker stadig nedenfor)
+  if(f.siege&&visSet.has(key(c.q,c.r))) openSiegePanel(c.q,c.r);
   // vælg enhed på feltet (cykl. ved gentaget tap)
   const mine=unitsOn(f,me.id);
   if(mine.length){
@@ -973,6 +1035,16 @@ function draw(){
         x+=Math.cos(a)*8; y+=Math.sin(a)*5;
       }
       drawAvatar(x,y+HEX*0.15,guilds[u.g].color,u===selUnit,guilds[u.g].player);
+      // navneskilt med guild-tag under figuren
+      if(cam.z>=0.7){
+        const label=(u.name||'Kriger')+' ['+(guilds[u.g].tag||'?')+']';
+        ctx2.font='600 6px Poppins,sans-serif';
+        ctx2.textAlign='center'; ctx2.textBaseline='top';
+        ctx2.lineWidth=2.5; ctx2.strokeStyle='rgba(15,20,22,0.8)'; ctx2.lineJoin='round';
+        ctx2.strokeText(label,x,y+HEX*0.15+7);
+        ctx2.fillStyle=guilds[u.g].player?'#E8E4D8':guilds[u.g].color;
+        ctx2.fillText(label,x,y+HEX*0.15+7);
+      }
     }
   }
   // erobrings-effekter: ekspanderende ring i erobrerens farve
@@ -1012,11 +1084,11 @@ document.getElementById('bStart').addEventListener('click',()=>{
   setCtx('<b>Vælg dit borgfelt</b> — tap et felt i det oplyste område (25×25)');
 });
 function startGame(c){
-  const me=foundGuild('Jadefloden','#57B98A',c,true);
-  const AI=[['Stormkløften','#D25B4A'],['Azurhavet','#5B8FD2'],['Tågebjerget','#9B6FD2']];
-  for(const[n,col]of AI){
+  const me=foundGuild('Jadefloden','#57B98A','JADE',c,true);
+  const AI=[['Stormkløften','#D25B4A','STRM'],['Azurhavet','#5B8FD2','AZUR'],['Tågebjerget','#9B6FD2','TÅGE']];
+  for(const[n,col,tag]of AI){
     const a=pickAnchor();
-    if(a) foundGuild(n,col,a,false);
+    if(a) foundGuild(n,col,tag,a,false);
   }
   phase='play';
   lastDayTick=Date.now();
@@ -1050,6 +1122,7 @@ setInterval(()=>{
   tickRegen(); tickMarches(); tickSieges(); tickDay();
   computeVision(); updateHud();
   if(selUnit) select(selUnit);
+  if(siegeView) renderSiegePanel();
 },CFG.TICK_MS);
 setInterval(()=>{ if(phase==='play') tickAI(); },2000);
 requestAnimationFrame(draw);
