@@ -1,0 +1,780 @@
+<title>Krigen om Riget</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap">
+<style>
+  :root{
+    --ink:#0F1416; --panel:#161E21; --panel2:#1C262A; --line:#2A363B;
+    --text:#E8E4D8; --muted:#8A958F;
+    --jade:#57B98A; --cinnabar:#D25B4A; --azure:#5B8FD2; --violet:#9B6FD2;
+    --gold:#D9A44A;
+  }
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--ink); color:var(--text);
+    font-family:Poppins,system-ui,sans-serif; font-weight:300;
+    overflow:hidden; -webkit-user-select:none; user-select:none;
+    touch-action:none;
+  }
+  #map{position:fixed; inset:0; display:block; background:var(--ink)}
+  .hud{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;
+    background:linear-gradient(#0F1416F2,#0F1416CC 70%,transparent);
+    pointer-events:none;
+  }
+  .hud>*{pointer-events:auto}
+  .hud .brand{font-family:Cinzel,serif; font-weight:700; font-size:15px; letter-spacing:.04em; color:var(--jade); white-space:nowrap}
+  .stat{font-size:12.5px; color:var(--muted); white-space:nowrap}
+  .stat b{color:var(--text); font-weight:500; font-variant-numeric:tabular-nums}
+  .stat .g{color:var(--gold)}
+  .spacer{flex:1}
+  .hbtn{
+    background:var(--panel); border:1px solid var(--line); color:var(--text);
+    border-radius:6px; padding:6px 10px; font:500 12px Poppins,sans-serif;
+    position:relative; cursor:pointer;
+  }
+  .hbtn:focus-visible{outline:2px solid var(--jade); outline-offset:2px}
+  .badge{
+    position:absolute; top:-6px; right:-6px; min-width:16px; height:16px;
+    border-radius:8px; background:var(--cinnabar); color:#fff;
+    font:600 10px/16px Poppins,sans-serif; text-align:center; padding:0 3px;
+  }
+  .foot{
+    position:fixed; left:0; right:0; bottom:0; z-index:10;
+    padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);
+    background:linear-gradient(transparent,#0F1416CC 30%,#0F1416F2);
+    display:flex; flex-direction:column; gap:8px; pointer-events:none;
+  }
+  .foot>*{pointer-events:auto}
+  #ctx{font-size:12.5px; color:var(--muted); min-height:17px}
+  #ctx b{color:var(--text); font-weight:500}
+  #actions{display:flex; gap:8px; flex-wrap:wrap}
+  #actions:empty{display:none}
+  .abtn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:6px; padding:7px 12px; font:500 12.5px Poppins,sans-serif; cursor:pointer;
+  }
+  .abtn.gold{border-color:#6B5423; color:var(--gold)}
+  .abtn:focus-visible{outline:2px solid var(--jade); outline-offset:2px}
+  .panel{
+    position:fixed; z-index:20; left:50%; transform:translateX(-50%);
+    bottom:0; width:min(440px,100%); max-height:70vh; overflow-y:auto;
+    background:var(--panel); border:1px solid var(--line); border-bottom:0;
+    border-radius:12px 12px 0 0; padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+    box-sizing:border-box; display:none;
+  }
+  .panel.open{display:block}
+  .panel h2{font-family:Cinzel,serif; font-weight:700; font-size:16px; margin:0 0 4px; color:var(--gold)}
+  .panel .sub{font-size:12px; color:var(--muted); margin:0 0 12px}
+  .row{display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line)}
+  .row .t{flex:1; min-width:0}
+  .row .t b{display:block; font-weight:500; font-size:13px}
+  .row .t span{font-size:11.5px; color:var(--muted)}
+  .logrow{padding:7px 0; border-top:1px solid var(--line); font-size:12.5px; display:flex; gap:8px}
+  .logrow .d{color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 auto}
+  .logrow.warn{color:#E8A29A}
+  .overlay{
+    position:fixed; inset:0; z-index:30; background:#0F1416E6;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay.open{display:flex}
+  .card{
+    width:min(420px,100%); background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:24px; box-sizing:border-box; max-height:85vh; overflow-y:auto;
+  }
+  .card h1{font-family:Cinzel,serif; font-weight:700; font-size:22px; margin:0 0 2px; color:var(--jade); text-wrap:balance}
+  .card .k{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+  .card p{font-size:13.5px; line-height:1.65; margin:10px 0; color:var(--text)}
+  .card p.m{color:var(--muted); font-size:12.5px}
+  .card .big{
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    padding:12px; text-align:center; margin:14px 0;
+  }
+  .card .big .n{font-family:Cinzel,serif; font-size:30px; color:var(--gold); font-weight:700}
+  .card .big .l{font-size:11.5px; color:var(--muted)}
+  .cta{
+    display:block; width:100%; box-sizing:border-box; text-align:center;
+    background:#1F3A2E; border:1px solid var(--jade); color:var(--jade);
+    border-radius:8px; padding:12px; font:600 14px Poppins,sans-serif;
+    cursor:pointer; margin-top:14px;
+  }
+  .cta:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+  #toast{
+    position:fixed; top:calc(env(safe-area-inset-top,0px) + 52px); left:50%;
+    transform:translateX(-50%); z-index:25; background:var(--panel2);
+    border:1px solid var(--line); border-radius:8px; padding:8px 14px;
+    font-size:12.5px; opacity:0; transition:opacity .3s; pointer-events:none;
+    max-width:85vw; text-align:center;
+  }
+  @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
+</style>
+
+<canvas id="map"></canvas>
+
+<div class="hud">
+  <div class="brand">Krigen om Riget</div>
+  <div class="stat">Dag <b id="hDay">1</b></div>
+  <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
+  <div class="stat">Sæson <b id="hSeason">–</b></div>
+  <div class="spacer"></div>
+  <button class="hbtn" id="bUpg">Opgraderinger</button>
+  <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
+</div>
+
+<div class="foot">
+  <div id="ctx">Demo · 1 spildøgn = 30 sekunder</div>
+  <div id="actions"></div>
+</div>
+
+<div class="panel" id="pUpg">
+  <h2>Sæsontræet</h2>
+  <p class="sub">Købes for sæsonpoint ✦ (1 pr. felt pr. døgn, spirit veins giver 2). Nulstilles ved sæsonslut.</p>
+  <div id="upgList"></div>
+  <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
+</div>
+
+<div class="panel" id="pLog">
+  <h2>Begivenheder</h2>
+  <p class="sub">Holdets krønike — det din guild-tab ville vise.</p>
+  <div id="logList"></div>
+  <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
+</div>
+
+<div class="overlay open" id="oIntro">
+  <div class="card">
+    <div class="k">Void Idle · territorie-demo</div>
+    <h1>Krigen om Riget</h1>
+    <p>Din guild, <b style="color:var(--jade)">Jadefloden</b>, skal rejse sin borg i det ukendte. Tre rivaliserende guilds gør det samme — et sted derude i tågen.</p>
+    <p>Erobr felter, hold vagt ved grænsen, og saml sæsonpoint. Ved sæsonslut bliver dit rige til permanente guild-opgraderinger.</p>
+    <p class="m">Tiden er accelereret: 1 spildøgn ≈ 30 sekunder, sæsonen varer 16 døgn. Du styrer alle 4 medlemmer — i det rigtige spil styrer hver spiller sit eget.</p>
+    <button class="cta" id="bStart">Find land til borgen</button>
+  </div>
+</div>
+
+<div class="overlay" id="oEnd">
+  <div class="card">
+    <div class="k">Sæsonen er slut</div>
+    <h1 id="endTitle">Opgørelsen</h1>
+    <div class="big"><div class="n" id="endPts">0</div><div class="l">permanente guild-point (dagligt udbytte af felter holdt ≥ 1 døgn)</div></div>
+    <p id="endBody"></p>
+    <button class="cta" onclick="location.reload()">Ny sæson</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   CONFIG — alle tal fra designdokumentet, skaleret til demo-tid.
+   Reelle værdier i kommentar; DAY_MS er den eneste tidsenhed.
+   ============================================================ */
+const CFG = {
+  DAY_MS: 30000,             // 1 spildøgn (reelt: 24 t)
+  SEASON_DAYS: 16,           // reelt: 30 dage
+  MAP_RADIUS: 24,
+  SPAWN_BAND: [8, 14],       // ankerafstand til nærmeste borg
+  PLACE_RADIUS: 12,          // 25x25-vindue ≈ hex-disc radius 12
+  BORG_MIN_GAP: 3,           // min. 2 frie felter mellem borge
+  VISION_FIELD: 1, VISION_UNIT: 2, VISION_BORG: 5, VISION_TOWER: 3,
+  MP_MAX: 6, MP_START: 3,
+  MP_REGEN_MS: 10000,        // reelt: 1 pr. 4 t
+  SIEGE_WINDOW: 60000,       // reelt: 12-24 t
+  MOB_DELAY: 8000,           // reelt: ~1 t (kun mod guild-ejede felter)
+  PROTECT_MS: 45000,         // reelt: 2-3 døgn
+  START_PROTECT_MS: 90000,   // startbeskyttelse (reelt: 5 døgn / 5 felter)
+  NEUTRAL_BASE: 6,           // bar-target, neutralt felt
+  SIEGE_BASE: 14,            // bar-target, guild-felt
+  BAR_PER_FIELD: 0.35,       // barlængde skalerer med EGET antal felter
+  TOP_N: 8,                  // kun top-8 bidrag tæller
+  FILL_PER_UNIT: 1,          // fremdrift pr. enhed pr. tick
+  GARRISON: 0.35,            // forsvarets passive fremdrift
+  BANNER_MULT: 1.15,
+  TICK_MS: 500,
+};
+const SQ3 = Math.sqrt(3), HEX = 26;
+const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+const key = (q,r)=>q+','+r;
+const dist = (a,b)=>(Math.abs(a.q-b.q)+Math.abs(a.q+a.r-b.q-b.r)+Math.abs(a.r-b.r))/2;
+function hexToPx(q,r){ return {x:HEX*SQ3*(q+r/2), y:HEX*1.5*r}; }
+function pxToHex(x,y){
+  const q=(SQ3/3*x-y/3)/HEX, r=(2/3*y)/HEX, s=-q-r;
+  let rq=Math.round(q), rr=Math.round(r), rs=Math.round(s);
+  const dq=Math.abs(rq-q), dr=Math.abs(rr-r), ds=Math.abs(rs-s);
+  if(dq>dr&&dq>ds) rq=-rr-rs; else if(dr>ds) rr=-rq-rs;
+  return {q:rq,r:rr};
+}
+function disc(c,rad){
+  const out=[];
+  for(let q=-rad;q<=rad;q++)for(let r=Math.max(-rad,-q-rad);r<=Math.min(rad,-q+rad);r++)
+    out.push({q:c.q+q,r:c.r+r});
+  return out;
+}
+
+/* ================= Spiltilstand ================= */
+const fields = new Map();       // key -> field
+const seen = new Map();         // spillerens "sidst kendte info": key -> {owner,type,tower}
+let guilds=[], units=[], banner=null, visSet=new Set();
+let day=1, phase='intro', seasonEndAt=0, lastDayTick=0, unread=0;
+let selUnit=null, selField=null, reach=new Map(); // key -> 'move'|'attack'
+let towerMode=false, bannerMode=false;
+const upgrades={boots:0, garrison:0, tower:true};
+const logs=[];
+
+function makeMap(){
+  const R=CFG.MAP_RADIUS;
+  for(const c of disc({q:0,r:0},R)){
+    const d=dist(c,{q:0,r:0});
+    let type='normal';
+    const rnd=Math.random();
+    if(d<=7 && rnd<0.22) type='vein';
+    else if(rnd<0.08) type='mountain';
+    fields.set(key(c.q,c.r),{q:c.q,r:c.r,type,owner:null,ownedSince:0,protectedUntil:0,tower:false,siege:null});
+  }
+}
+const F=(q,r)=>fields.get(key(q,r));
+
+/* ============ Spawn-algoritme: anker i konfliktbåndet ============ */
+function pickAnchor(){
+  const cands=[];
+  for(const f of fields.values()){
+    if(f.owner) continue;
+    if(guilds.length===0){
+      const d=dist(f,{q:0,r:0});
+      if(d>=11&&d<=16) cands.push({f,score:Math.random()});
+      continue;
+    }
+    let dmin=1e9;
+    for(const g of guilds) dmin=Math.min(dmin,dist(f,g.borg));
+    if(dmin<CFG.SPAWN_BAND[0]||dmin>CFG.SPAWN_BAND[1]) continue;
+    // nærmest guilden med færrest naboer -> jævn konflikt
+    let target=guilds[0], best=1e9;
+    for(const g of guilds){
+      let nb=0;
+      for(const o of guilds) if(o!==g && dist(o.borg,g.borg)<=15) nb++;
+      if(nb<best){best=nb; target=g;}
+    }
+    cands.push({f,score:-dist(f,target.borg)+Math.random()*2});
+  }
+  if(!cands.length) return null;
+  cands.sort((a,b)=>b.score-a.score);
+  return cands[0].f;
+}
+function foundGuild(name,color,borgCell,isPlayer){
+  const g={id:guilds.length,name,color,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
+           player:!!isPlayer, protectedUntil:performance.now()+CFG.START_PROTECT_MS, captures:0};
+  guilds.push(g);
+  for(const c of disc(borgCell,1)){
+    const f=F(c.q,c.r); if(f&&!f.owner){f.owner=g.id; f.ownedSince=performance.now();}
+  }
+  const n=isPlayer?4:3;
+  for(let i=0;i<n;i++)
+    units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:performance.now(),goal:null});
+  return g;
+}
+
+/* ================= Fog of war ================= */
+function computeVision(){
+  visSet=new Set();
+  const add=(c,rad)=>{ for(const h of disc(c,rad)){ if(fields.has(key(h.q,h.r))) visSet.add(key(h.q,h.r)); } };
+  const me=guilds.find(g=>g.player); if(!me) return;
+  for(const f of fields.values()){
+    if(f.owner===me.id){ add(f,CFG.VISION_FIELD); if(f.tower) add(f,CFG.VISION_TOWER); }
+  }
+  add(me.borg,CFG.VISION_BORG);
+  for(const u of units) if(u.g===me.id) add(u,CFG.VISION_UNIT);
+  for(const k of visSet){
+    const f=fields.get(k);
+    seen.set(k,{owner:f.owner,type:f.type,tower:f.tower});
+  }
+}
+
+/* ================= Log & toast ================= */
+function fmtDay(){ return 'Dag '+day; }
+function log(msg,warn){
+  logs.unshift({d:fmtDay(),msg,warn});
+  if(logs.length>60)logs.pop();
+  unread++; updateHud();
+}
+let toastT=0;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity=1;
+  clearTimeout(toastT); toastT=setTimeout(()=>t.style.opacity=0,2600);
+}
+
+/* ================= Belejringer ================= */
+function fieldsOwned(gid){ let n=0; for(const f of fields.values()) if(f.owner===gid)n++; return n; }
+function startSiege(f,gid){
+  const now=performance.now();
+  const aTarget=(f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
+  const dTarget=f.owner===null?0:CFG.SIEGE_BASE*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(f.owner)));
+  const mob=f.owner===null?0:CFG.MOB_DELAY;
+  f.siege={att:gid,aBar:0,aTarget,dBar:0,dTarget,mobUntil:now+mob,end:now+mob+CFG.SIEGE_WINDOW};
+  const me=guilds.find(g=>g.player);
+  if(f.owner===me.id) log('⚠️ Belejring af dit felt ('+f.q+','+f.r+') — '+guilds[gid].name+' angriber!',true);
+  else if(gid===me.id&&f.owner!==null) log('Belejring startet mod '+guilds[f.owner].name+' ved ('+f.q+','+f.r+')');
+}
+function unitsOn(f,gid){ return units.filter(u=>u.g===gid&&u.q===f.q&&u.r===f.r); }
+function retreat(u){
+  const g=guilds[u.g]; u.q=g.borg.q; u.r=g.borg.r; u.goal=null;
+}
+function resolveSiege(f,won){
+  const s=f.siege, now=performance.now(), me=guilds.find(g=>g.player);
+  const old=f.owner;
+  if(won){
+    for(const u of unitsOn(f,old===null?-1:old)) retreat(u);
+    f.owner=s.att; f.ownedSince=now; f.tower=false;
+    guilds[s.att].captures++;
+    if(s.att===me.id) toast(old===null?'Felt erobret ✦':'Felt erobret fra '+guilds[old].name+'!');
+    if(old===me.id) log('💔 Felt tabt ved ('+f.q+','+f.r+') til '+guilds[s.att].name,true);
+    else if(s.att===me.id&&old!==null) log('🏴 Felt erobret fra '+guilds[old].name+' ved ('+f.q+','+f.r+')');
+  } else {
+    for(const u of unitsOn(f,s.att)) retreat(u);
+    if(old===me.id) log('🛡️ Forsvaret holdt ved ('+f.q+','+f.r+')');
+    if(s.att===me.id) toast('Belejringen slog fejl — forsvaret holdt');
+  }
+  if(old!==null||won) f.protectedUntil=now+CFG.PROTECT_MS;
+  f.siege=null;
+}
+function tickSieges(){
+  const now=performance.now(), rate=CFG.TICK_MS/1000;
+  for(const f of fields.values()){
+    const s=f.siege; if(!s) continue;
+    if(now<s.mobUntil) continue;
+    let att=unitsOn(f,s.att).length;
+    if(att===0 && f.owner!==null && s.aBar===0 && now>s.mobUntil+4000){ f.siege=null; continue; }
+    att=Math.min(att,CFG.TOP_N);
+    let mult=1;
+    if(banner&&banner.q===f.q&&banner.r===f.r&&s.att===guilds.find(g=>g.player).id) mult=CFG.BANNER_MULT;
+    s.aBar+=att*CFG.FILL_PER_UNIT*mult*rate;
+    if(f.owner!==null){
+      let def=Math.min(unitsOn(f,f.owner).length,CFG.TOP_N);
+      let g=CFG.GARRISON*(1+(f.owner===guilds.find(x=>x.player).id?upgrades.garrison*0.5:0));
+      if(f.type==='mountain') g*=1.6;
+      if(banner&&banner.q===f.q&&banner.r===f.r&&f.owner===guilds.find(x=>x.player).id) def*=CFG.BANNER_MULT;
+      s.dBar+=(def*CFG.FILL_PER_UNIT+g)*rate;
+      if(s.dBar>=s.dTarget){ resolveSiege(f,false); continue; }
+    }
+    if(s.aBar>=s.aTarget){ resolveSiege(f,true); continue; }
+    if(now>=s.end) resolveSiege(f,false);
+  }
+}
+
+/* ================= Bevægelse ================= */
+function tryMove(u,q,r){
+  const f=F(q,r); if(!f||u.mp<1) return false;
+  if(dist(u,{q,r})!==1) return false;
+  const now=performance.now();
+  if(f.owner===u.g){ u.q=q;u.r=r;u.mp--; return true; }
+  // angreb: ryk ind på fremmed felt
+  if(f.protectedUntil>now) return false;
+  if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
+  if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
+  u.q=q;u.r=r;u.mp--;
+  if(!f.siege) startSiege(f,u.g);
+  else if(f.siege.att!==u.g && f.owner!==u.g && f.owner!==null){} // slut dig til forsvar via ejerskab
+  return true;
+}
+function tickRegen(){
+  const now=performance.now();
+  const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
+  for(const u of units){
+    while(now-u.lastRegen>=regen){ u.lastRegen+=regen; if(u.mp<CFG.MP_MAX)u.mp++; }
+  }
+}
+
+/* ================= AI ================= */
+function aiPath(u,target){
+  // BFS over egne felter (+ ét skridt ud); returnér næste skridt
+  const gid=u.g, startK=key(u.q,u.r);
+  const prev=new Map([[startK,null]]), queue=[{q:u.q,r:u.r}];
+  while(queue.length){
+    const c=queue.shift();
+    for(const[dq,dr]of DIRS){
+      const q=c.q+dq,r=c.r+dr,k=key(q,r), f=fields.get(k);
+      if(!f||prev.has(k)) continue;
+      prev.set(k,key(c.q,c.r));
+      if(q===target.q&&r===target.r){
+        let cur=k;
+        while(prev.get(cur)!==startK) cur=prev.get(cur);
+        const[nq,nr]=cur.split(',').map(Number);
+        return {q:nq,r:nr};
+      }
+      if(f.owner===gid) queue.push({q,r});
+    }
+  }
+  return null;
+}
+function tickAI(){
+  const now=performance.now();
+  const me=guilds.find(g=>g.player);
+  for(const g of guilds){
+    if(g.player) continue;
+    for(const u of units.filter(x=>x.g===g.id)){
+      if(u.mp<1) continue;
+      const here=F(u.q,u.r);
+      if(here.siege) continue; // bliv og kæmp
+      // 1) forsvar
+      let tgt=null,best=1e9;
+      for(const f of fields.values()){
+        if(f.owner===g.id&&f.siege){ const d=dist(u,f); if(d<best){best=d;tgt=f;} }
+      }
+      // 2) angrib spilleren af og til efter dag 5
+      if(!tgt && day>=5 && Math.random()<0.10 && now>me.protectedUntil){
+        let cand=null,cb=1e9;
+        for(const f of fields.values()){
+          if(f.owner!==me.id||f.protectedUntil>now||f.siege) continue;
+          if(f.q===me.borg.q&&f.r===me.borg.r) continue;
+          const d=dist(u,f); if(d<cb&&d<10){cb=d;cand=f;}
+        }
+        tgt=cand;
+      }
+      // 3) ekspandér til nærmeste neutrale nabofelt
+      if(!tgt){
+        let cand=null,cb=1e9;
+        for(const f of fields.values()){
+          if(f.owner!==null||f.protectedUntil>now) continue;
+          const adj=DIRS.some(([dq,dr])=>{const n=F(f.q+dq,f.r+dr);return n&&n.owner===g.id;});
+          if(!adj) continue;
+          const d=dist(u,f); if(d<cb){cb=d;cand=f;}
+        }
+        tgt=cand;
+      }
+      if(!tgt) continue;
+      const step=dist(u,tgt)===1?{q:tgt.q,r:tgt.r}:aiPath(u,tgt);
+      if(step) tryMove(u,step.q,step.r);
+    }
+  }
+}
+
+/* ================= Døgn & sæson ================= */
+function tickDay(){
+  const now=performance.now();
+  if(now-lastDayTick<CFG.DAY_MS) return;
+  lastDayTick+=CFG.DAY_MS; day++;
+  const me=guilds.find(g=>g.player);
+  for(const g of guilds){
+    let inc=0;
+    for(const f of fields.values())
+      if(f.owner===g.id && now-f.ownedSince>=CFG.DAY_MS) inc+=f.type==='vein'?2:1;
+    g.pts+=inc;
+    if(g.player&&inc>0) log('✦ +'+inc+' sæsonpoint fra riget');
+  }
+  if(day>CFG.SEASON_DAYS) endSeason();
+}
+function endSeason(){
+  phase='end';
+  const now=performance.now(), me=guilds.find(g=>g.player);
+  const rows=guilds.map(g=>{
+    let pay=0;
+    for(const f of fields.values())
+      if(f.owner===g.id && now-f.ownedSince>=CFG.DAY_MS) pay+=f.type==='vein'?2:1;
+    return {g,pay};
+  }).sort((a,b)=>b.pay-a.pay);
+  const mine=rows.find(r=>r.g.player);
+  document.getElementById('endPts').textContent=mine.pay;
+  document.getElementById('endTitle').textContent=rows[0].g.player?'Jadefloden hersker':'Opgørelsen';
+  document.getElementById('endBody').innerHTML=rows.map((r,i)=>
+    (i+1)+'. <b style="color:'+r.g.color+'">'+r.g.name+'</b> — '+r.pay+' point'
+  ).join('<br>')+'<br><br><span style="color:var(--muted);font-size:12px">Felter erobret sidste døgn tæller ikke (24-timers-reglen). I det rigtige spil købes permanente Kamp-opgraderinger for disse point.</span>';
+  document.getElementById('oEnd').classList.add('open');
+}
+
+/* ================= Opgraderinger ================= */
+const UPG=[
+  {id:'boots', name:'Hurtige støvler', desc:'+25% hurtigere bevægelses-regen pr. niveau', cost:()=>5+upgrades.boots*3, max:3, lvl:()=>upgrades.boots,
+   buy(){upgrades.boots++;}},
+  {id:'garrison', name:'Garnison', desc:'+50% passivt forsvar i belejringer pr. niveau', cost:()=>6+upgrades.garrison*3, max:3, lvl:()=>upgrades.garrison,
+   buy(){upgrades.garrison++;}},
+  {id:'tower', name:'Vagttårn', desc:'Byg på eget felt: syn 3 felter ud', cost:()=>4, max:99, lvl:()=>'–',
+   buy(){towerMode=true; closePanels(); toast('Vælg et af dine felter til vagttårnet');}},
+];
+function renderUpg(){
+  const me=guilds.find(g=>g.player);
+  document.getElementById('upgList').innerHTML=UPG.map(u=>{
+    const maxed=typeof u.lvl()==='number'&&u.lvl()>=u.max;
+    const can=me.pts>=u.cost()&&!maxed;
+    return '<div class="row"><div class="t"><b>'+u.name+(typeof u.lvl()==='number'?' · niv. '+u.lvl():'')+'</b><span>'+u.desc+'</span></div>'+
+      '<button class="abtn'+(can?' gold':'')+'" '+(can?'':'disabled style="opacity:.4"')+' onclick="buyUpg(\''+u.id+'\')">'+
+      (maxed?'Maks':u.cost()+' ✦')+'</button></div>';
+  }).join('');
+}
+function buyUpg(id){
+  const u=UPG.find(x=>x.id===id), me=guilds.find(g=>g.player);
+  if(me.pts<u.cost()) return;
+  me.pts-=u.cost(); u.buy(); renderUpg(); updateHud();
+}
+function closePanels(){
+  document.getElementById('pUpg').classList.remove('open');
+  document.getElementById('pLog').classList.remove('open');
+}
+
+/* ================= HUD ================= */
+function updateHud(){
+  const me=guilds.find(g=>g.player);
+  document.getElementById('hDay').textContent=Math.min(day,CFG.SEASON_DAYS);
+  document.getElementById('hPts').textContent=me?me.pts:0;
+  document.getElementById('hSeason').textContent=Math.max(0,CFG.SEASON_DAYS-day+1)+' dage';
+  const b=document.getElementById('logBadge');
+  b.style.display=unread>0?'block':'none'; b.textContent=unread;
+}
+function setCtx(html){ document.getElementById('ctx').innerHTML=html; }
+function setActions(btns){
+  document.getElementById('actions').innerHTML=btns.map(b=>
+    '<button class="abtn'+(b.gold?' gold':'')+'" onclick="'+b.fn+'">'+b.label+'</button>').join('');
+}
+
+/* ================= Kamera & input ================= */
+const cv=document.getElementById('map'), ctx2=cv.getContext('2d');
+let cam={x:0,y:0,z:1}, dpr=1;
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr;
+  cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px';
+}
+addEventListener('resize',resize); resize();
+
+const ptrs=new Map(); let dragStart=null,camStart=null,pinch0=0,z0=1,moved=false;
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1){ dragStart={x:e.clientX,y:e.clientY}; camStart={...cam}; moved=false; }
+  else if(ptrs.size===2){
+    const[a,b]=[...ptrs.values()]; pinch0=Math.hypot(a.x-b.x,a.y-b.y); z0=cam.z;
+  }
+});
+cv.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1&&dragStart){
+    const dx=e.clientX-dragStart.x, dy=e.clientY-dragStart.y;
+    if(Math.hypot(dx,dy)>6) moved=true;
+    cam.x=camStart.x-dx/cam.z; cam.y=camStart.y-dy/cam.z;
+  } else if(ptrs.size===2){
+    const[a,b]=[...ptrs.values()];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    cam.z=Math.max(.35,Math.min(2.5,z0*d/pinch0));
+  }
+});
+cv.addEventListener('pointerup',e=>{
+  const wasTap=ptrs.size===1&&!moved;
+  ptrs.delete(e.pointerId);
+  if(wasTap) handleTap(e.clientX,e.clientY);
+  if(!ptrs.size){dragStart=null;}
+});
+cv.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  cam.z=Math.max(.35,Math.min(2.5,cam.z*(e.deltaY<0?1.12:0.89)));
+},{passive:false});
+
+function screenToWorld(sx,sy){
+  return {x:(sx-innerWidth/2)/cam.z+cam.x, y:(sy-innerHeight/2)/cam.z+cam.y};
+}
+
+/* ================= Tap-håndtering ================= */
+let placeAnchor=null;
+function handleTap(sx,sy){
+  const w=screenToWorld(sx,sy), c=pxToHex(w.x,w.y), f=F(c.q,c.r);
+  if(!f) return;
+  const me=guilds.find(g=>g.player);
+  if(phase==='place'){
+    if(dist(c,placeAnchor)>CFG.PLACE_RADIUS){ toast('Vælg inden for det oplyste område'); return; }
+    startGame(c); return;
+  }
+  if(phase!=='play') return;
+  const k=key(c.q,c.r);
+  if(towerMode){
+    if(f.owner===me.id&&!f.tower&&me.pts>=4){ me.pts-=4; f.tower=true; computeVision(); log('🗼 Vagttårn rejst ved ('+f.q+','+f.r+')'); toast('Vagttårnet spejder 3 felter ud'); }
+    else toast('Skal være dit eget felt uden tårn');
+    towerMode=false; updateHud(); return;
+  }
+  if(bannerMode){
+    if(visSet.has(k)){ banner={q:c.q,r:c.r}; log('🚩 Banneret er plantet ved ('+f.q+','+f.r+')'); toast('+15% bidrag for enheder ved banneret'); }
+    else toast('Banneret kan kun plantes på synlige felter');
+    bannerMode=false; return;
+  }
+  // ryk valgt enhed?
+  if(selUnit&&reach.has(k)){
+    const kind=reach.get(k);
+    if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Erobring i gang…':'Mobilisering — kampen starter om lidt'); }
+    select(selUnit); return;
+  }
+  // vælg enhed på feltet (cykl. ved gentaget tap)
+  const mine=unitsOn(f,me.id);
+  if(mine.length){
+    const i=selUnit&&mine.includes(selUnit)?(mine.indexOf(selUnit)+1)%mine.length:0;
+    select(mine[i]); return;
+  }
+  select(null); selField=f; describeField(f);
+}
+function select(u){
+  selUnit=u; selField=null; reach=new Map();
+  if(!u){ setCtx('Demo · 1 spildøgn = 30 sekunder'); setActions([]); return; }
+  const me=guilds.find(g=>g.player), now=performance.now();
+  for(const[dq,dr]of DIRS){
+    const f=F(u.q+dq,u.r+dr); if(!f) continue;
+    if(f.owner===u.g) reach.set(key(f.q,f.r),'move');
+    else if(u.mp>0&&f.protectedUntil<=now
+      &&!(f.owner!==null&&guilds[f.owner].protectedUntil>now)
+      &&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
+      reach.set(key(f.q,f.r),'attack');
+  }
+  setCtx('<b>Medlem '+(units.filter(x=>x.g===me.id).indexOf(u)+1)+'</b> · '+u.mp+'/'+CFG.MP_MAX+' bevægelse · tap et oplyst felt');
+  setActions([{label:'🚩 Plant banner',fn:'armBanner()',gold:true}]);
+}
+function armBanner(){ bannerMode=true; toast('Tap et synligt felt'); }
+function describeField(f){
+  const me=guilds.find(g=>g.player), now=performance.now(), k=key(f.q,f.r);
+  const known=visSet.has(k)?f:(seen.get(k)||null);
+  if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
+  const who=known.owner===null?'Neutralt':(guilds[known.owner].name+(visSet.has(k)?'':' <i>(sidst kendte info)</i>'));
+  const typ=known.type==='vein'?' · Spirit vein (2 ✦/døgn)':known.type==='mountain'?' · Bjerg (stærkt forsvar)':'';
+  const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
+  setCtx('<b>'+who+'</b>'+typ+prot);
+  setActions([]);
+}
+
+/* ================= Rendering ================= */
+function hexPath(cx,cy,s){
+  ctx2.beginPath();
+  for(let i=0;i<6;i++){
+    const a=Math.PI/180*(60*i-30);
+    const x=cx+s*Math.cos(a), y=cy+s*Math.sin(a);
+    i?ctx2.lineTo(x,y):ctx2.moveTo(x,y);
+  }
+  ctx2.closePath();
+}
+function draw(){
+  ctx2.setTransform(dpr,0,0,dpr,0,0);
+  ctx2.fillStyle='#0F1416'; ctx2.fillRect(0,0,innerWidth,innerHeight);
+  ctx2.translate(innerWidth/2,innerHeight/2); ctx2.scale(cam.z,cam.z); ctx2.translate(-cam.x,-cam.y);
+  const now=performance.now();
+  const me=guilds.find(g=>g.player);
+  const pad=HEX*2, vw=innerWidth/2/cam.z+pad, vh=innerHeight/2/cam.z+pad;
+  for(const f of fields.values()){
+    const p=hexToPx(f.q,f.r);
+    if(Math.abs(p.x-cam.x)>vw||Math.abs(p.y-cam.y)>vh) continue;
+    const k=key(f.q,f.r);
+    const vis=phase==='place'?dist(f,placeAnchor)<=CFG.PLACE_RADIUS:visSet.has(k);
+    const mem=!vis&&seen.has(k)?seen.get(k):null;
+    if(!vis&&!mem){
+      ctx2.strokeStyle='rgba(255,255,255,0.03)'; ctx2.lineWidth=1;
+      hexPath(p.x,p.y,HEX-1); ctx2.stroke();
+      continue;
+    }
+    const info=vis?f:mem;
+    let base=info.type==='vein'?'#1E3A2C':info.type==='mountain'?'#252D34':'#1B2327';
+    hexPath(p.x,p.y,HEX-1.2);
+    ctx2.fillStyle=base; ctx2.fill();
+    if(info.owner!==null){
+      ctx2.fillStyle=guilds[info.owner].color+'33'; ctx2.fill();
+      ctx2.strokeStyle=guilds[info.owner].color+(vis?'CC':'55'); ctx2.lineWidth=1.6; ctx2.stroke();
+    } else {
+      ctx2.strokeStyle='rgba(255,255,255,0.07)'; ctx2.lineWidth=1; ctx2.stroke();
+    }
+    if(!vis){ ctx2.fillStyle='rgba(15,20,22,0.55)'; hexPath(p.x,p.y,HEX-1.2); ctx2.fill(); }
+    // symboler
+    ctx2.textAlign='center'; ctx2.textBaseline='middle';
+    if(info.type==='vein'){ ctx2.fillStyle=vis?'#57B98A':'#57B98A66'; ctx2.font='11px Poppins'; ctx2.fillText('✦',p.x,p.y-(vis?6:0)); }
+    if(info.type==='mountain'){ ctx2.fillStyle=vis?'#8A958F':'#8A958F66'; ctx2.font='10px Poppins'; ctx2.fillText('▲',p.x,p.y-(vis?6:0)); }
+    const isBorg=guilds.some(g=>g.borg.q===f.q&&g.borg.r===f.r);
+    if(isBorg){
+      const g=guilds.find(g=>g.borg.q===f.q&&g.borg.r===f.r);
+      ctx2.fillStyle=g.color; ctx2.font='700 15px Cinzel,serif'; ctx2.fillText('⛩',p.x,p.y-2);
+    }
+    if(vis&&f.tower){ ctx2.fillStyle='#D9A44A'; ctx2.font='10px Poppins'; ctx2.fillText('🗼',p.x+HEX*0.42,p.y-HEX*0.42); }
+    if(vis&&f.protectedUntil>now&&!isBorg){ ctx2.fillStyle='#8A958F'; ctx2.font='9px Poppins'; ctx2.fillText('🛡',p.x-HEX*0.42,p.y-HEX*0.42); }
+    if(banner&&banner.q===f.q&&banner.r===f.r){ ctx2.fillStyle='#D9A44A'; ctx2.font='12px Poppins'; ctx2.fillText('🚩',p.x,p.y-HEX*0.55); }
+    // belejringsbarer
+    if(vis&&f.siege){
+      const s=f.siege, w=HEX*1.2, h=3.5, x0=p.x-w/2, y0=p.y+HEX*0.45;
+      ctx2.fillStyle='#0F1416CC'; ctx2.fillRect(x0-1,y0-1,w+2,(f.owner!==null?h*2+3:h)+2);
+      ctx2.fillStyle=guilds[s.att].color;
+      ctx2.fillRect(x0,y0,w*Math.min(1,s.aBar/s.aTarget),h);
+      if(f.owner!==null){
+        ctx2.fillStyle=guilds[f.owner].color;
+        ctx2.fillRect(x0,y0+h+1,w*Math.min(1,s.dBar/s.dTarget),h);
+      }
+      if(now<s.mobUntil){ ctx2.fillStyle='#E8E4D8'; ctx2.font='8px Poppins'; ctx2.fillText('⌛',p.x,p.y+HEX*0.2); }
+    }
+    // enheder: antal + farve (navne kun tæt på — udeladt i demo)
+    if(vis){
+      const groups={};
+      for(const u of units) if(u.q===f.q&&u.r===f.r)(groups[u.g]=groups[u.g]||[]).push(u);
+      let gi=0;
+      for(const gid in groups){
+        const n=groups[gid].length, g=guilds[gid];
+        const ux=p.x+(gi-((Object.keys(groups).length-1)/2))*12, uy=p.y+HEX*0.18;
+        ctx2.beginPath(); ctx2.arc(ux,uy,6,0,7);
+        ctx2.fillStyle=g.color; ctx2.fill();
+        if(groups[gid].includes(selUnit)){ ctx2.strokeStyle='#fff'; ctx2.lineWidth=1.8; ctx2.stroke(); }
+        if(n>1){ ctx2.fillStyle='#0F1416'; ctx2.font='600 8px Poppins'; ctx2.fillText(n,ux,uy+0.5); }
+        gi++;
+      }
+    }
+    // rækkevidde-highlight
+    if(reach.has(k)){
+      hexPath(p.x,p.y,HEX-3);
+      ctx2.strokeStyle=reach.get(k)==='move'?'#57B98A':'#D25B4A';
+      ctx2.lineWidth=2; ctx2.setLineDash([4,3]); ctx2.stroke(); ctx2.setLineDash([]);
+    }
+  }
+  // placeringsring
+  if(phase==='place'){
+    const p=hexToPx(placeAnchor.q,placeAnchor.r);
+    ctx2.beginPath(); ctx2.arc(p.x,p.y,(CFG.PLACE_RADIUS+0.5)*HEX*SQ3,0,7);
+    ctx2.strokeStyle='#D9A44A66'; ctx2.lineWidth=2; ctx2.setLineDash([8,6]); ctx2.stroke(); ctx2.setLineDash([]);
+  }
+  requestAnimationFrame(draw);
+}
+
+/* ================= Spilstart ================= */
+document.getElementById('bStart').addEventListener('click',()=>{
+  document.getElementById('oIntro').classList.remove('open');
+  placeAnchor=pickAnchor();
+  phase='place';
+  const p=hexToPx(placeAnchor.q,placeAnchor.r); cam.x=p.x; cam.y=p.y; cam.z=0.8;
+  setCtx('<b>Vælg dit borgfelt</b> — tap et felt i det oplyste område (25×25)');
+});
+function startGame(c){
+  const me=foundGuild('Jadefloden','#57B98A',c,true);
+  const AI=[['Stormkløften','#D25B4A'],['Azurhavet','#5B8FD2'],['Tågebjerget','#9B6FD2']];
+  for(const[n,col]of AI){
+    const a=pickAnchor();
+    if(a) foundGuild(n,col,a,false);
+  }
+  phase='play';
+  lastDayTick=performance.now();
+  computeVision(); updateHud();
+  log('⛩ Borgen er rejst. Riget begynder her.');
+  log('Spejdere melder: tre fremmede guilds har slået sig ned i tågen…');
+  toast('Tap en af dine grønne enheder for at rykke');
+  const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.1;
+  setCtx('Demo · 1 spildøgn = 30 sekunder');
+}
+
+/* ================= Paneler ================= */
+document.getElementById('bUpg').addEventListener('click',()=>{
+  closePanels(); renderUpg(); document.getElementById('pUpg').classList.add('open');
+});
+document.getElementById('bLog').addEventListener('click',()=>{
+  closePanels(); unread=0; updateHud();
+  document.getElementById('logList').innerHTML=logs.map(l=>
+    '<div class="logrow'+(l.warn?' warn':'')+'"><span class="d">'+l.d+'</span><span>'+l.msg+'</span></div>'
+  ).join('')||'<div class="logrow">Ingen begivenheder endnu.</div>';
+  document.getElementById('pLog').classList.add('open');
+});
+
+/* ================= Hovedløkke ================= */
+makeMap();
+setInterval(()=>{
+  if(phase!=='play') return;
+  tickRegen(); tickSieges(); tickDay();
+  computeVision(); updateHud();
+  if(selUnit) select(selUnit);
+},CFG.TICK_MS);
+setInterval(()=>{ if(phase==='play') tickAI(); },2000);
+requestAnimationFrame(draw);
+</script>
