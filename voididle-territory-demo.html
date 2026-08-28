@@ -132,6 +132,7 @@
   <p class="sub">Købes for sæsonpoint ✦ (1 pr. felt pr. døgn, spirit veins giver 2). Nulstilles ved sæsonslut.</p>
   <div id="upgList"></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
+  <button class="abtn" style="width:100%;margin-top:8px;color:var(--cinnabar)" onclick="resetDemo()">Nulstil demoen (start forfra)</button>
 </div>
 
 <div class="panel" id="pLog">
@@ -158,7 +159,7 @@
     <h1 id="endTitle">Opgørelsen</h1>
     <div class="big"><div class="n" id="endPts">0</div><div class="l">permanente guild-point (dagligt udbytte af felter holdt ≥ 1 døgn)</div></div>
     <p id="endBody"></p>
-    <button class="cta" onclick="location.reload()">Ny sæson</button>
+    <button class="cta" onclick="resetDemo()">Ny sæson</button>
   </div>
 </div>
 
@@ -219,6 +220,7 @@ let guilds=[], units=[], banner=null, visSet=new Set();
 let day=1, phase='intro', seasonEndAt=0, lastDayTick=0, unread=0;
 let selUnit=null, selField=null, reach=new Map(); // key -> 'move'|'attack'
 let tapFlash=null; // {q,r,t} kort blink ved hvert tryk
+let fx=[];         // erobrings-effekter {q,r,t,color}
 let towerMode=false, bannerMode=false;
 const upgrades={boots:0, garrison:0, tower:true};
 const logs=[];
@@ -235,6 +237,52 @@ function makeMap(){
   }
 }
 const F=(q,r)=>fields.get(key(q,r));
+
+/* ============ Gem/indlæs — demoen overlever genindlæsning (idle!) ============ */
+const SAVE_KEY='voididle-territory-demo-v1';
+function saveGame(){
+  if(phase!=='play') return;
+  try{
+    localStorage.setItem(SAVE_KEY,JSON.stringify({
+      day,lastDayTick,banner,upgrades,unread,cam,
+      logs:logs.slice(0,40),
+      guilds,units,
+      types:[...fields.values()].map(f=>f.type==='vein'?1:f.type==='mountain'?2:0),
+      fields:[...fields.values()]
+        .filter(f=>f.owner!==null||f.tower||f.siege||f.protectedUntil>Date.now())
+        .map(f=>({q:f.q,r:f.r,owner:f.owner,ownedSince:f.ownedSince,
+                  protectedUntil:f.protectedUntil,tower:f.tower,siege:f.siege})),
+    }));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
+    if(!s||!s.guilds||!s.guilds.length) return false;
+    const cells=disc({q:0,r:0},CFG.MAP_RADIUS);
+    if(s.types&&s.types.length===cells.length)
+      cells.forEach((c,i)=>{F(c.q,c.r).type=s.types[i]===1?'vein':s.types[i]===2?'mountain':'normal';});
+    for(const sf of s.fields||[]){
+      const f=F(sf.q,sf.r); if(!f) continue;
+      f.owner=sf.owner; f.ownedSince=sf.ownedSince; f.protectedUntil=sf.protectedUntil;
+      f.tower=sf.tower; f.siege=sf.siege;
+    }
+    guilds=s.guilds; units=s.units; banner=s.banner||null;
+    Object.assign(upgrades,s.upgrades||{});
+    logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
+    day=s.day||1;
+    // offline-opsamling: højst 3 døgns point ved fravær
+    lastDayTick=Math.max(s.lastDayTick||Date.now(),Date.now()-3*CFG.DAY_MS);
+    if(s.cam) cam=s.cam;
+    phase='play';
+    computeVision(); updateHud();
+    const me=guilds.find(g=>g.player);
+    select(units.find(u=>u.g===me.id)||null);
+    toast('Velkommen tilbage — riget har ventet på dig');
+    return true;
+  }catch(e){ return false; }
+}
+function resetDemo(){ try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload(); }
 
 /* ============ Spawn-algoritme: anker i konfliktbåndet ============ */
 function pickAnchor(){
@@ -264,14 +312,14 @@ function pickAnchor(){
 }
 function foundGuild(name,color,borgCell,isPlayer){
   const g={id:guilds.length,name,color,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
-           player:!!isPlayer, protectedUntil:performance.now()+CFG.START_PROTECT_MS, captures:0};
+           player:!!isPlayer, protectedUntil:Date.now()+CFG.START_PROTECT_MS, captures:0};
   guilds.push(g);
   for(const c of disc(borgCell,1)){
-    const f=F(c.q,c.r); if(f&&!f.owner){f.owner=g.id; f.ownedSince=performance.now();}
+    const f=F(c.q,c.r); if(f&&!f.owner){f.owner=g.id; f.ownedSince=Date.now();}
   }
   const n=isPlayer?4:3;
   for(let i=0;i<n;i++)
-    units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:performance.now(),goal:null});
+    units.push({id:units.length,g:g.id,q:borgCell.q,r:borgCell.r,mp:CFG.MP_START,lastRegen:Date.now(),goal:null});
   return g;
 }
 
@@ -308,7 +356,7 @@ function toast(msg){
 /* ================= Belejringer ================= */
 function fieldsOwned(gid){ let n=0; for(const f of fields.values()) if(f.owner===gid)n++; return n; }
 function startSiege(f,gid){
-  const now=performance.now();
+  const now=Date.now();
   const aTarget=(f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
   const dTarget=f.owner===null?0:CFG.SIEGE_BASE*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(f.owner)));
   const mob=f.owner===null?0:CFG.MOB_DELAY;
@@ -322,17 +370,19 @@ function retreat(u){
   const g=guilds[u.g]; u.q=g.borg.q; u.r=g.borg.r; u.goal=null;
 }
 function resolveSiege(f,won){
-  const s=f.siege, now=performance.now(), me=guilds.find(g=>g.player);
+  const s=f.siege, now=Date.now(), me=guilds.find(g=>g.player);
   const old=f.owner;
   if(won){
     for(const u of unitsOn(f,old===null?-1:old)) retreat(u);
     f.owner=s.att; f.ownedSince=now; f.tower=false;
     guilds[s.att].captures++;
+    fx.push({q:f.q,r:f.r,t:now,color:guilds[s.att].color});
     if(s.att===me.id) toast(old===null?'Felt erobret ✦':'Felt erobret fra '+guilds[old].name+'!');
     if(old===me.id) log('💔 Felt tabt ved ('+f.q+','+f.r+') til '+guilds[s.att].name,true);
     else if(s.att===me.id&&old!==null) log('🏴 Felt erobret fra '+guilds[old].name+' ved ('+f.q+','+f.r+')');
   } else {
     for(const u of unitsOn(f,s.att)) retreat(u);
+    if(old!==null) fx.push({q:f.q,r:f.r,t:now,color:guilds[old].color});
     if(old===me.id) log('🛡️ Forsvaret holdt ved ('+f.q+','+f.r+')');
     if(s.att===me.id) toast('Belejringen slog fejl — forsvaret holdt');
   }
@@ -340,7 +390,7 @@ function resolveSiege(f,won){
   f.siege=null;
 }
 function tickSieges(){
-  const now=performance.now(), rate=CFG.TICK_MS/1000;
+  const now=Date.now(), rate=CFG.TICK_MS/1000;
   for(const f of fields.values()){
     const s=f.siege; if(!s) continue;
     if(now<s.mobUntil) continue;
@@ -367,7 +417,7 @@ function tickSieges(){
 function tryMove(u,q,r){
   const f=F(q,r); if(!f||u.mp<1) return false;
   if(dist(u,{q,r})!==1) return false;
-  const now=performance.now();
+  const now=Date.now();
   if(f.owner===u.g){ u.q=q;u.r=r;u.mp--; return true; }
   // angreb: ryk ind på fremmed felt
   if(f.protectedUntil>now) return false;
@@ -379,7 +429,7 @@ function tryMove(u,q,r){
   return true;
 }
 function tickRegen(){
-  const now=performance.now();
+  const now=Date.now();
   const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
   for(const u of units){
     while(now-u.lastRegen>=regen){ u.lastRegen+=regen; if(u.mp<CFG.MP_MAX)u.mp++; }
@@ -409,10 +459,17 @@ function aiPath(u,target){
   return null;
 }
 function tickAI(){
-  const now=performance.now();
+  const now=Date.now();
   const me=guilds.find(g=>g.player);
   for(const g of guilds){
     if(g.player) continue;
+    // AI bygger vagttårne på grænsefelter og køber opgraderinger med sine point
+    if(Math.random()<0.05 && g.pts>=4){
+      const frontier=[...fields.values()].filter(f=>f.owner===g.id&&!f.tower&&
+        DIRS.some(([dq,dr])=>{const n=F(f.q+dq,f.r+dr);return n&&n.owner!==g.id;}));
+      const pick=frontier[Math.floor(Math.random()*frontier.length)];
+      if(pick){ g.pts-=4; pick.tower=true; }
+    }
     for(const u of units.filter(x=>x.g===g.id)){
       if(u.mp<1) continue;
       const here=F(u.q,u.r);
@@ -422,12 +479,15 @@ function tickAI(){
       for(const f of fields.values()){
         if(f.owner===g.id&&f.siege){ const d=dist(u,f); if(d<best){best=d;tgt=f;} }
       }
-      // 2) angrib spilleren af og til efter dag 5
-      if(!tgt && day>=5 && Math.random()<0.10 && now>me.protectedUntil){
+      // 2) angrib en fjende: andre hold fra dag 3, spilleren fra dag 5
+      if(!tgt && Math.random()<0.08){
         let cand=null,cb=1e9;
         for(const f of fields.values()){
-          if(f.owner!==me.id||f.protectedUntil>now||f.siege) continue;
-          if(f.q===me.borg.q&&f.r===me.borg.r) continue;
+          if(f.owner===null||f.owner===g.id||f.protectedUntil>now||f.siege) continue;
+          const og=guilds[f.owner];
+          if(og.player && (day<5 || now<me.protectedUntil)) continue;
+          if(!og.player && day<3) continue;
+          if(f.q===og.borg.q&&f.r===og.borg.r) continue;
           const d=dist(u,f); if(d<cb&&d<10){cb=d;cand=f;}
         }
         tgt=cand;
@@ -452,22 +512,24 @@ function tickAI(){
 
 /* ================= Døgn & sæson ================= */
 function tickDay(){
-  const now=performance.now();
-  if(now-lastDayTick<CFG.DAY_MS) return;
-  lastDayTick+=CFG.DAY_MS; day++;
-  const me=guilds.find(g=>g.player);
-  for(const g of guilds){
-    let inc=0;
-    for(const f of fields.values())
-      if(f.owner===g.id && now-f.ownedSince>=CFG.DAY_MS) inc+=f.type==='vein'?2:1;
-    g.pts+=inc;
-    if(g.player&&inc>0) log('✦ +'+inc+' sæsonpoint fra riget');
+  const now=Date.now();
+  let guard=0;
+  // while-løkke: samler også dage op efter fravær (idle-opsamling)
+  while(now-lastDayTick>=CFG.DAY_MS && phase==='play' && guard++<40){
+    lastDayTick+=CFG.DAY_MS; day++;
+    for(const g of guilds){
+      let inc=0;
+      for(const f of fields.values())
+        if(f.owner===g.id && now-f.ownedSince>=CFG.DAY_MS) inc+=f.type==='vein'?2:1;
+      g.pts+=inc;
+      if(g.player&&inc>0){ log('✦ +'+inc+' sæsonpoint fra riget'); toast('Dag '+day+' · +'+inc+' ✦'); }
+    }
+    if(day>CFG.SEASON_DAYS) endSeason();
   }
-  if(day>CFG.SEASON_DAYS) endSeason();
 }
 function endSeason(){
   phase='end';
-  const now=performance.now(), me=guilds.find(g=>g.player);
+  const now=Date.now(), me=guilds.find(g=>g.player);
   const rows=guilds.map(g=>{
     let pay=0;
     for(const f of fields.values())
@@ -581,7 +643,7 @@ let placeAnchor=null;
 function handleTap(sx,sy){
   const w=screenToWorld(sx,sy), c=pxToHex(w.x,w.y), f=F(c.q,c.r);
   if(!f) return;
-  tapFlash={q:c.q,r:c.r,t:performance.now()};
+  tapFlash={q:c.q,r:c.r,t:Date.now()};
   const me=guilds.find(g=>g.player);
   if(phase==='place'){
     if(dist(c,placeAnchor)>CFG.PLACE_RADIUS){ toast('Vælg inden for det oplyste område'); return; }
@@ -618,7 +680,7 @@ function handleTap(sx,sy){
 function select(u){
   selUnit=u; selField=null; reach=new Map();
   if(!u){ setCtx('Demo · 1 spildøgn = 30 sekunder'); setActions([]); return; }
-  const me=guilds.find(g=>g.player), now=performance.now();
+  const me=guilds.find(g=>g.player), now=Date.now();
   for(const[dq,dr]of DIRS){
     const f=F(u.q+dq,u.r+dr); if(!f) continue;
     if(f.owner===u.g) reach.set(key(f.q,f.r),'move');
@@ -632,7 +694,7 @@ function select(u){
 }
 function armBanner(){ bannerMode=true; toast('Tap et synligt felt'); }
 function describeField(f){
-  const me=guilds.find(g=>g.player), now=performance.now(), k=key(f.q,f.r);
+  const me=guilds.find(g=>g.player), now=Date.now(), k=key(f.q,f.r);
   const known=visSet.has(k)?f:(seen.get(k)||null);
   if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
   const who=known.owner===null?'Neutralt':(guilds[known.owner].name+(visSet.has(k)?'':' <i>(sidst kendte info)</i>'));
@@ -656,7 +718,7 @@ function draw(){
   ctx2.setTransform(dpr,0,0,dpr,0,0);
   ctx2.fillStyle='#0F1416'; ctx2.fillRect(0,0,innerWidth,innerHeight);
   ctx2.translate(innerWidth/2,innerHeight/2); ctx2.scale(cam.z,cam.z); ctx2.translate(-cam.x,-cam.y);
-  const now=performance.now();
+  const now=Date.now();
   const me=guilds.find(g=>g.player);
   const pad=HEX*2, vw=innerWidth/2/cam.z+pad, vh=innerHeight/2/cam.z+pad;
   for(const f of fields.values()){
@@ -703,7 +765,14 @@ function draw(){
         ctx2.fillStyle=guilds[f.owner].color;
         ctx2.fillRect(x0,y0+h+1,w*Math.min(1,s.dBar/s.dTarget),h);
       }
-      if(now<s.mobUntil){ ctx2.fillStyle='#E8E4D8'; ctx2.font='8px Poppins'; ctx2.fillText('⌛',p.x,p.y+HEX*0.2); }
+      if(now<s.mobUntil){
+        ctx2.fillStyle='#E8E4D8'; ctx2.font='8px Poppins'; ctx2.fillText('⌛',p.x,p.y+HEX*0.2);
+      } else {
+        ctx2.globalAlpha=0.55+0.45*Math.abs(Math.sin(now/250));
+        ctx2.font='11px Poppins'; ctx2.fillStyle='#E8E4D8';
+        ctx2.fillText('⚔',p.x,p.y-HEX*0.05);
+        ctx2.globalAlpha=1;
+      }
     }
     // enheder: antal + farve (navne kun tæt på — udeladt i demo)
     if(vis){
@@ -743,6 +812,15 @@ function draw(){
       ctx2.lineWidth=2; ctx2.stroke();
     } else tapFlash=null;
   }
+  // erobrings-effekter: ekspanderende ring i erobrerens farve
+  fx=fx.filter(e=>now-e.t<900);
+  for(const e of fx){
+    const age=(now-e.t)/900, p=hexToPx(e.q,e.r);
+    hexPath(p.x,p.y,(HEX-2)*(1+age*0.9));
+    ctx2.globalAlpha=0.8*(1-age);
+    ctx2.strokeStyle=e.color; ctx2.lineWidth=2.5; ctx2.stroke();
+    ctx2.globalAlpha=1;
+  }
   // placeringsring
   if(phase==='place'){
     const p=hexToPx(placeAnchor.q,placeAnchor.r);
@@ -768,7 +846,7 @@ function startGame(c){
     if(a) foundGuild(n,col,a,false);
   }
   phase='play';
-  lastDayTick=performance.now();
+  lastDayTick=Date.now();
   computeVision(); updateHud();
   log('⛩ Borgen er rejst. Riget begynder her.');
   log('Spejdere melder: tre fremmede guilds har slået sig ned i tågen…');
@@ -791,6 +869,9 @@ document.getElementById('bLog').addEventListener('click',()=>{
 
 /* ================= Hovedløkke ================= */
 makeMap();
+if(loadGame()) document.getElementById('oIntro').classList.remove('open');
+setInterval(saveGame,5000);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveGame(); });
 setInterval(()=>{
   if(phase!=='play') return;
   tickRegen(); tickSieges(); tickDay();
