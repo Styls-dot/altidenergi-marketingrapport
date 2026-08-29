@@ -1336,10 +1336,27 @@ function describeField(f){
   const who=gOwn?((gOwn.sigil?sigilTag(gOwn.sigil,11)+' ':'')+gOwn.name+(visSet.has(k)?'':' <i>(sidst kendt)</i>')):'Neutralt';
   const isBorgF=gOwn&&gOwn.borg.q===f.q&&gOwn.borg.r===f.r;
   const march=known.type==='mountain'?'+100% marchtid (tungt terræn)':known.type==='forest'?'+50% marchtid (tæt skov)':'normal marchtid';
-  // magt-listen: hovedmagten erobrer med 100%, de andre med 20%
+  // magt-listen: hovedmagten erobrer med 100%, de andre med 20%.
+  // Med en valgt figur vises dens reelle tal, og den højeste lyser op —
+  // det er den, spillet selv vælger at slå med.
   const mainP=(known.type==='forest'||known.type==='mountain')?'gp':known.type==='vein'?'kp':'cp';
-  const powRows=[['cp','⚔','Combat power'],['gp','🪓','Gather power'],['kp','🔨','Craft power']].map(([kk,ic,nm])=>
-    '<div class="tp-pow'+(kk===mainP?' main':'')+'"><span>'+ic+' '+nm+'</span><b>'+(kk===mainP?100:Math.round(CFG.OFF_POWER*100))+'%</b></div>').join('');
+  const u0=selUnit&&guilds[selUnit.g]&&guilds[selUnit.g].player?selUnit:null;
+  const POWS=[['cp','⚔','Combat power'],['gp','🪓','Gather power'],['kp','🔨','Craft power']];
+  let bestKk=mainP;
+  if(u0){
+    let best=-1;
+    for(const[kk]of POWS){
+      const eff=(u0[kk]||0)*(kk===mainP?1:CFG.OFF_POWER);
+      if(eff>best){best=eff;bestKk=kk;}
+    }
+  }
+  const powRows=POWS.map(([kk,ic,nm])=>{
+    const pct=kk===mainP?100:Math.round(CFG.OFF_POWER*100);
+    const eff=u0?Math.round((u0[kk]||0)*pct/100):null;
+    return '<div class="tp-pow'+(kk===bestKk?' main':'')+'"><span>'+ic+' '+nm
+      +' <span class="tp-dim">'+pct+'%</span></span><b>'
+      +(u0!==null?eff+(kk===bestKk?' ◄':''):pct+'%')+'</b></div>';
+  }).join('');
   let rows='';
   if(isBorgF){
     rows='<div class="tp-row">⛩ Hovedborg — kan ikke erobres</div>'
