@@ -806,6 +806,11 @@ function tickMarches(){
     if(!blocked) startSiege(f,u.g);
   }
 }
+function mpEtaSec(u){
+  const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
+  return Math.max(0,Math.ceil((regen-(Date.now()-u.lastRegen))/1000));
+}
+function fmtMMSS(s){ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function tickRegen(){
   const now=Date.now();
   const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
@@ -1263,7 +1268,8 @@ function updateSelCard(){
   document.getElementById('scGp').textContent=selUnit.gp||100;
   document.getElementById('scKp').textContent=selUnit.kp||100;
   document.getElementById('scMp').textContent=selUnit.marching?'på march…'
-    :'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp));
+    :'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp))
+     +(selUnit.mp<CFG.MP_MAX?' '+fmtMMSS(mpEtaSec(selUnit)):'');
 }
 let uiFocus='unit'; // 'unit' = figur-info i bunden, 'field' = felt-info/-handlinger
 function computeReach(u){
@@ -1379,6 +1385,19 @@ function describeField(f){
       rows+='<div class="tp-row">🛡 beskyttet endnu '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</div>';
     }
   }
+  // forventet capture-tid med den valgte figur alene (din bar fuld)
+  if(!isBorgF&&u0&&visSet.has(k)&&f.owner!==me.id){
+    const effBest=(u0[bestKk]||0)*(bestKk===mainP?1:CFG.OFF_POWER);
+    if(effBest>0){
+      const secs=attTarget(f,me.id)/(effBest/100);
+      rows+='<div class="tp-row">⏱ Capture-tid: ~'+fmtMMSS(secs)
+        +' <span class="tp-dim">(med '+(u0.name||'figuren')+' alene)</span></div>';
+      if(f.owner!==null)
+        rows+='<div class="tp-row tp-dim">+ '+fmtMMSS(CFG.MOB_DELAY/1000)+' mobilisering — og forsvaret fylder sin egen bar imens</div>';
+    }
+  }
+  if(u0&&u0.mp<1&&!u0.marching)
+    rows+='<div class="tp-row" style="color:var(--gold)">⏳ Ingen bevægelse lige nu — næste om '+fmtMMSS(mpEtaSec(u0))+' <span class="tp-dim">(ordrer sættes i kø)</span></div>';
   // handlinger i vinduet: gå/capture, flag og byggeordrer
   const acts=[];
   if(visSet.has(k)&&selUnit&&!selUnit.marching&&!(selUnit.q===f.q&&selUnit.r===f.r)&&!isBorgF){
@@ -1430,7 +1449,8 @@ function routeTo(q,r,attack){
   let cur=goalK;
   while(cur&&cur!==startK){ const[a,b]=cur.split(',').map(Number); route.unshift({q:a,r:b}); cur=prev.get(cur); }
   u.route=route;
-  toast((attack?'⚔ Erobringsordre':'🥾 På vej')+' — '+route.length+' skridt');
+  toast((attack?'⚔ Erobringsordre':'🥾 På vej')+' — '+route.length+' skridt'
+    +(u.mp<1?' · venter på bevægelse ('+fmtMMSS(mpEtaSec(u))+')':''));
   select(u);
 }
 // Ruter afvikles skridt for skridt, når figuren har bevægelse klar
