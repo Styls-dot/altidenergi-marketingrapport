@@ -54,11 +54,13 @@
 - **Et træk er en march, der tager tid** (rejsetid pr. felt; skov/bjerg 1,5×/2×).
   Undervejs tegnes en stiplet linje fra figurens aktuelle position til målet —
   linjen **krymper**, som figuren rykker frem.
-- Man bevæger sig kun på egne felter — undtagen det ene skridt ind på et felt,
-  man angriber.
-- **Kun connected angreb:** et felt kan kun angribes/erobres, hvis det grænser
-  op til eget territorium. Riget vokser sammenhængende; fronter og choke-points
-  betyder noget.
+- **Fugleflugt over åbent land:** ruter går den korteste vej over egne og
+  neutrale felter. **Andre guilds' territorium spærrer** — ruten lægges udenom.
+  (Erstatter den tidligere regel om kun at gå på egne felter.)
+- Neutrale felter kan **passeres uden at blive erobret** — kun ordre-målet
+  erobres. Dermed er "kun connected angreb" droppet: man kan angribe alt, man
+  kan marchere hen til, og fjendens varsel er selve marchen gennem vildmarken
+  (synlig efter fog-reglerne).
 - Belejringen starter først **ved ankomst** — marchen er forsvarerens varsel.
 
 ## 5. Fog of war

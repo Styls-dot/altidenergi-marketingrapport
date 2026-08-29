@@ -781,17 +781,22 @@ function animateMove(u,fromQ,fromR,dur){
   const p=hexToPx(fromQ,fromR);
   u.anim={fx:p.x,fy:p.y,fk:key(fromQ,fromR),t0:Date.now(),dur:dur||450};
 }
-function tryMove(u,q,r){
+function tryMove(u,q,r,through){
   const f=F(q,r); if(!f||u.mp<1||u.marching) return false;
   if(dist(u,{q,r})!==1) return false;
   const now=Date.now();
   if(f.owner!==u.g){
-    // kun connected angreb: målet skal grænse op til eget territorium
-    if(!DIRS.some(([dq,dr])=>{const n=F(q+dq,r+dr);return n&&n.owner===u.g;})) return false;
-    if(f.protectedUntil>now) return false;
-    if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
-    if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
+    if(through){
+      // passage: neutralt land er aabent, andre guilds' land spaerrer altid
+      if(f.owner!==null) return false;
+    } else {
+      // sidste skridt = erobringsforsoeg: beskyttelse og borg gaelder
+      if(f.protectedUntil>now) return false;
+      if(f.owner!==null && guilds[f.owner].protectedUntil>now) return false;
+      if(f.owner!==null && f.q===guilds[f.owner].borg.q && f.r===guilds[f.owner].borg.r) return false; // borg uindtagelig
+    }
   }
+  u.throughMove=!!through&&f.owner!==u.g;
   u.mp--;
   const dur=CFG.MARCH_MS*(f.type==='forest'?1.5:f.type==='mountain'?2:1); // skov/bjerg: tungere terræn
   u.marching={fq:u.q,fr:u.r,tq:q,tr:r,t0:now,dur};
@@ -804,8 +809,10 @@ function tickMarches(){
     const m=u.marching; if(!m) continue;
     if(now<m.t0+m.dur) continue;
     u.marching=null; u.q=m.tq; u.r=m.tr;
+    const wasThrough=u.throughMove; u.throughMove=false;
     const f=F(m.tq,m.tr);
     if(!f||f.owner===u.g) continue;
+    if(wasThrough) continue; // passage gennem vildmarken — ingen erobring
     if(f.siege){ joinSiege(f,u.g); continue; }
     const blocked=f.protectedUntil>now
       ||(f.owner!==null&&guilds[f.owner].protectedUntil>now)
@@ -1291,7 +1298,6 @@ function computeReach(u){
     const f=F(u.q+dq,u.r+dr); if(!f) continue;
     if(f.owner===u.g){ if(u.mp>0) reach.set(key(f.q,f.r),'move'); }
     else if(u.mp>0&&f.protectedUntil<=now
-      &&DIRS.some(([aq,ar])=>{const n=F(f.q+aq,f.r+ar);return n&&n.owner===u.g;})
       &&!(f.owner!==null&&guilds[f.owner].protectedUntil>now)
       &&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
       reach.set(key(f.q,f.r),'attack');
@@ -1459,7 +1465,7 @@ function findRoute(u,q,r,attack){
         if(!attack&&f2.owner!==me.id) continue;
         prev.set(k2,key(c.q,c.r)); goalK=k2; break outer;
       }
-      if(f2.owner===me.id){ prev.set(k2,key(c.q,c.r)); queue.push({q:nq,r:nr}); }
+      if(f2.owner===me.id||f2.owner===null){ prev.set(k2,key(c.q,c.r)); queue.push({q:nq,r:nr}); }
     }
   }
   if(!goalK) return null;
@@ -1480,7 +1486,7 @@ function routeTo(q,r,attack){
   const u=selUnit; if(!u||u.marching) return;
   if(party&&u.id===party.leader&&dist(u,{q,r})===1){ partyMove(q,r); return; }
   const route=findRoute(u,q,r,attack);
-  if(!route){ toast('No route through your own territory'); return; }
+  if(!route){ toast('No route — another guild\'s land blocks the way'); return; }
   u.route=route;
   toast((attack?'⚔ Capture order':'🥾 Moving out')+' — '+route.length+' steps'
     +(u.mp<1?' · waiting for movement ('+fmtMMSS(mpEtaSec(u))+')':''));
@@ -1497,10 +1503,11 @@ function tickRoutes(){
     if(party&&u.id===party.leader){
       const members=party.members.map(id=>units.find(x=>x.id===id)).filter(Boolean);
       if(!members.every(m=>m.q===u.q&&m.r===u.r&&m.mp>=1&&!m.marching)) continue;
-      let ok=false; for(const m of members) if(tryMove(m,next.q,next.r)) ok=true;
+      const thr=u.route.length>1;
+      let ok=false; for(const m of members) if(tryMove(m,next.q,next.r,thr)) ok=true;
       if(ok) u.route.shift(); else u.route=null;
     } else {
-      if(tryMove(u,next.q,next.r)) u.route.shift();
+      if(tryMove(u,next.q,next.r,u.route.length>1)) u.route.shift();
       else u.route=null; // blokeret (beskyttelse, borg mv.)
     }
     if(u.route&&!u.route.length){ u.route=null; if(u===selUnit) toast('Arrived ✓'); }
