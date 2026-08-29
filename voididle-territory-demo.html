@@ -216,6 +216,8 @@
   .hud{pointer-events:none}
   .hud .hbtn{pointer-events:auto}
   #selCard,#toast{pointer-events:none}
+  .hdim{font-size:10px; color:var(--muted); opacity:.85}
+  .hdim b{color:var(--gold); font-variant-numeric:tabular-nums}
   .foot{pointer-events:none}
   .foot>*{pointer-events:none}
   .foot .abtn{pointer-events:auto}
@@ -226,7 +228,7 @@
 
 <div class="hud">
   <div class="brand">Krigen om Riget</div>
-  <div class="stat">Dag <b id="hDay">1</b></div>
+  <div class="stat">Dag <b id="hDay">1</b> <span class="hdim">ny om <b id="hNext">–</b></span></div>
   <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
   <div class="stat">Sæson <b id="hSeason">–</b></div>
   <div class="spacer"></div>
@@ -1091,6 +1093,8 @@ function renderSiegePanel(){
 function updateHud(){
   const me=guilds.find(g=>g.player);
   document.getElementById('hDay').textContent=Math.min(day,CFG.SEASON_DAYS);
+  // ny dag = nye ✦ guild-point (bevægelse regenererer løbende, ikke pr. dag)
+  document.getElementById('hNext').textContent=fmtMMSS((CFG.DAY_MS-(Date.now()-lastDayTick))/1000);
   document.getElementById('hPts').textContent=me?me.pts:0;
   document.getElementById('hSeason').textContent=Math.max(0,CFG.SEASON_DAYS-day+1)+' dage';
   const b=document.getElementById('logBadge');
@@ -1268,8 +1272,9 @@ function updateSelCard(){
   document.getElementById('scGp').textContent=selUnit.gp||100;
   document.getElementById('scKp').textContent=selUnit.kp||100;
   document.getElementById('scMp').textContent=selUnit.marching?'på march…'
-    :'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp))
-     +(selUnit.mp<CFG.MP_MAX?' '+fmtMMSS(mpEtaSec(selUnit)):'');
+    :'🥾'+selUnit.mp+'/'+CFG.MP_MAX+' '
+     +'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp))
+     +(selUnit.mp<CFG.MP_MAX?' +1 om '+fmtMMSS(mpEtaSec(selUnit)):'');
 }
 let uiFocus='unit'; // 'unit' = figur-info i bunden, 'field' = felt-info/-handlinger
 function computeReach(u){
@@ -1385,6 +1390,15 @@ function describeField(f){
       rows+='<div class="tp-row">🛡 beskyttet endnu '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</div>';
     }
   }
+  // rute-omkostning: skridt, bevægelses-point og marchtid for den valgte figur
+  if(u0&&visSet.has(k)&&!u0.marching&&!(u0.q===f.q&&u0.r===f.r)&&!isBorgF){
+    const rt=findRoute(u0,f.q,f.r,f.owner!==me.id);
+    if(rt){
+      const extra=Math.max(0,rt.length-u0.mp);
+      rows+='<div class="tp-row">🥾 Rute: '+rt.length+' skridt · koster '+rt.length+' bevægelse · march ~'+fmtMMSS(marchSecs(rt))
+        +(extra>0?' <span class="tp-dim">(har '+u0.mp+' — venter undervejs på +'+extra+')</span>':'')+'</div>';
+    }
+  }
   // forventet capture-tid med den valgte figur alene (din bar fuld)
   if(!isBorgF&&u0&&visSet.has(k)&&f.owner!==me.id){
     const effBest=(u0[bestKk]||0)*(bestKk===mainP?1:CFG.OFF_POWER);
@@ -1422,11 +1436,9 @@ function describeField(f){
   updateTilePop();
 }
 /* ============ Kø-bevægelse: "Gå hertil" / "Capture" med automatisk rute ===== */
-function routeTo(q,r,attack){
-  const u=selUnit; if(!u||u.marching) return;
-  if(party&&u.id===party.leader&&dist(u,{q,r})===1){ partyMove(q,r); return; }
+// BFS gennem eget territorium; ved angreb er målet det fremmede felt som sidste skridt
+function findRoute(u,q,r,attack){
   const me=guilds.find(g=>g.player);
-  // BFS gennem eget territorium; ved angreb er målet det fremmede felt som sidste skridt
   const startK=key(u.q,u.r);
   const prev=new Map([[startK,null]]);
   const queue=[{q:u.q,r:u.r}];
@@ -1444,10 +1456,25 @@ function routeTo(q,r,attack){
       if(f2.owner===me.id){ prev.set(k2,key(c.q,c.r)); queue.push({q:nq,r:nr}); }
     }
   }
-  if(!goalK){ toast('Ingen rute gennem eget territorium'); return; }
+  if(!goalK) return null;
   const route=[];
   let cur=goalK;
   while(cur&&cur!==startK){ const[a,b]=cur.split(',').map(Number); route.unshift({q:a,r:b}); cur=prev.get(cur); }
+  return route;
+}
+function marchSecs(route){
+  let ms=0;
+  for(const st of route){
+    const f2=F(st.q,st.r);
+    ms+=CFG.MARCH_MS*(f2&&f2.type==='forest'?1.5:f2&&f2.type==='mountain'?2:1);
+  }
+  return ms/1000;
+}
+function routeTo(q,r,attack){
+  const u=selUnit; if(!u||u.marching) return;
+  if(party&&u.id===party.leader&&dist(u,{q,r})===1){ partyMove(q,r); return; }
+  const route=findRoute(u,q,r,attack);
+  if(!route){ toast('Ingen rute gennem eget territorium'); return; }
   u.route=route;
   toast((attack?'⚔ Erobringsordre':'🥾 På vej')+' — '+route.length+' skridt'
     +(u.mp<1?' · venter på bevægelse ('+fmtMMSS(mpEtaSec(u))+')':''));
@@ -1937,7 +1964,8 @@ setInterval(()=>{
   computeVision(); updateHud();
   if(selUnit){
     if(uiFocus==='unit') select(selUnit);
-    else { computeReach(selUnit); updateSelCard(); } // felt i fokus: forstyr ikke handlingerne
+    else { computeReach(selUnit); updateSelCard();
+      if(tilePopAt){ const tf=F(tilePopAt.q,tilePopAt.r); if(tf) describeField(tf); } }
   }
   if(siegeView) renderSiegePanel();
 },CFG.TICK_MS);
