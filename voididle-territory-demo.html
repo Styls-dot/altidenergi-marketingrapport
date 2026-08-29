@@ -1211,7 +1211,10 @@ function handleTap(sx,sy){
   if(phase==='place'){
     if(dist(c,placeAnchor)>CFG.PLACE_RADIUS){ toast('Pick inside the lit area'); return; }
     pendingPlace={q:c.q,r:c.r};
-    setCtx('<b>Build the stronghold here?</b> Tap another tile to move it');
+    const tot=disc(c,1).reduce((s,cc)=>{const f2=F(cc.q,cc.r);return s+(f2&&f2.owner===null?yieldOf(f2):0);},0);
+    setCtx('<b>Build the stronghold here?</b> You claim the 7 marked tiles'
+      +' · <b style="color:var(--gold)">✦ '+tot+'/day</b>'
+      +'<br><span style="font-size:11px;opacity:.85">Tap another tile to move it</span>');
     setActions([{label:'✓ Confirm stronghold here',fn:'confirmPlace()',gold:true},
                 {label:'Cancel',fn:'cancelPlace()'}]);
     return;
@@ -1924,6 +1927,15 @@ function draw(){
     ctx2.strokeStyle='#D9A44A66'; ctx2.lineWidth=2; ctx2.setLineDash([8,6]); ctx2.stroke(); ctx2.setLineDash([]);
     if(pendingPlace){
       const pp=hexToPx(pendingPlace.q,pendingPlace.r);
+      // marker de 7 felter, der bliver dine: blød fyldning + guldkant paa ringen
+      const pulse=0.35+0.25*Math.abs(Math.sin(now/350));
+      for(const cc of disc(pendingPlace,1)){
+        const f2=F(cc.q,cc.r); if(!f2) continue;
+        const p2=hexToPx(cc.q,cc.r);
+        hexPath(p2.x,p2.y,HEX-3);
+        ctx2.fillStyle='rgba(217,164,74,0.10)'; ctx2.fill();
+        ctx2.strokeStyle='rgba(217,164,74,'+pulse+')'; ctx2.lineWidth=1.6; ctx2.stroke();
+      }
       hexPath(pp.x,pp.y,HEX-2);
       ctx2.strokeStyle='#D9A44A'; ctx2.lineWidth=2.5; ctx2.stroke();
       ctx2.globalAlpha=0.55+0.35*Math.abs(Math.sin(now/300));
