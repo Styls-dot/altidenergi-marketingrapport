@@ -57,7 +57,9 @@
     padding:2px 6px; border-radius:4px}
   .sc-stats{display:flex; gap:10px; font-size:11px; color:var(--muted); margin-top:2px; white-space:nowrap}
   .sc-stats b{color:var(--gold); font-variant-numeric:tabular-nums; font-weight:600}
-  .sc-mp{color:var(--gold); letter-spacing:.1em}
+  .sc-mp{display:block; color:var(--gold); font-size:12px; margin-top:3px;
+    letter-spacing:.04em; white-space:normal}
+  .sc-mp b{font-weight:700}
   .foot{
     position:fixed; left:0; right:0; bottom:0; z-index:10;
     padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);
@@ -243,8 +245,8 @@
     <div class="sc-name"><span id="scName">–</span><span class="sc-tag" id="scTag"></span></div>
     <div class="sc-stats">
       <span>⚔ <b id="scCp">0</b></span><span>🪓 <b id="scGp">0</b></span><span>🔨 <b id="scKp">0</b></span>
-      <span class="sc-mp" id="scMp"></span>
     </div>
+    <div class="sc-mp" id="scMp"></div>
   </div>
 </div>
 
@@ -517,6 +519,8 @@ function loadGame(){
       if(!u.cp) u.cp=80+Math.floor(Math.random()*81);
       if(!u.gp) u.gp=u.lp||80+Math.floor(Math.random()*81);
       if(!u.kp) u.kp=80+Math.floor(Math.random()*81);
+      if(!u.lastRegen||!isFinite(u.lastRegen)) u.lastRegen=Date.now();
+      if(!(u.mp>=0&&u.mp<=CFG.MP_MAX)) u.mp=CFG.MP_START;
     });
     Object.assign(upgrades,s.upgrades||{});
     logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
@@ -817,6 +821,7 @@ function tickRegen(){
   const now=Date.now();
   const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
   for(const u of units){
+    if(!u.lastRegen||!isFinite(now-u.lastRegen)) u.lastRegen=now;
     while(now-u.lastRegen>=regen){ u.lastRegen+=regen; if(u.mp<CFG.MP_MAX)u.mp++; }
   }
 }
@@ -1271,10 +1276,10 @@ function updateSelCard(){
   document.getElementById('scCp').textContent=selUnit.cp||100;
   document.getElementById('scGp').textContent=selUnit.gp||100;
   document.getElementById('scKp').textContent=selUnit.kp||100;
-  document.getElementById('scMp').textContent=selUnit.marching?'på march…'
-    :'🥾'+selUnit.mp+'/'+CFG.MP_MAX+' '
+  document.getElementById('scMp').innerHTML=selUnit.marching?'🥾 på march…'
+    :'🥾 Bevægelse <b>'+selUnit.mp+'/'+CFG.MP_MAX+'</b> '
      +'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp))
-     +(selUnit.mp<CFG.MP_MAX?' +1 om '+fmtMMSS(mpEtaSec(selUnit)):'');
+     +(selUnit.mp<CFG.MP_MAX?' · +1 om '+fmtMMSS(mpEtaSec(selUnit)):' · fuld');
 }
 let uiFocus='unit'; // 'unit' = figur-info i bunden, 'field' = felt-info/-handlinger
 function computeReach(u){
