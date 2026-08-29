@@ -30,9 +30,11 @@
   .stat .g{color:var(--gold)}
   .spacer{flex:1}
   .hbtn{
-    background:var(--panel); border:1px solid var(--line); color:var(--text);
-    border-radius:6px; padding:6px 10px; font:500 12px Poppins,sans-serif;
+    background:linear-gradient(180deg, rgba(35,47,38,0.9), rgba(18,25,19,0.9));
+    border:1.5px solid rgba(138,107,47,0.75); color:var(--text);
+    border-radius:7px; padding:6px 10px; font:500 12px Poppins,sans-serif;
     position:relative; cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(217,164,74,0.12);
   }
   .hbtn:focus-visible{outline:2px solid var(--jade); outline-offset:2px}
   .badge{
@@ -44,10 +46,11 @@
     position:fixed; top:calc(env(safe-area-inset-top,0px) + 46px); left:50%;
     transform:translateX(-50%); z-index:9;
     display:flex; align-items:center; gap:10px;
-    background:linear-gradient(180deg, rgba(30,38,32,0.95), rgba(18,24,20,0.95));
-    border:1px solid #8A6B2F; border-radius:10px; padding:7px 14px 7px 9px;
-    box-shadow:0 4px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(217,164,74,0.25);
-    pointer-events:none; max-width:92vw;
+    background:
+      radial-gradient(140% 120% at 50% 0%, rgba(38,52,42,0.96), rgba(16,24,18,0.96) 65%), #101812;
+    border:2px solid #8A6B2F; border-radius:11px; padding:7px 14px 7px 9px;
+    outline:1px solid rgba(217,164,74,0.22); outline-offset:2px;
+    box-shadow:0 6px 22px rgba(0,0,0,0.55), inset 0 1px 0 rgba(217,164,74,0.18);
   }
   #selCard[hidden]{display:none}
   #scAvatar{width:34px; height:34px}
@@ -69,18 +72,25 @@
   .foot>*{pointer-events:auto}
   #tilePop{
     position:fixed; z-index:40; width:238px; transform:translateX(-50%);
-    background:linear-gradient(180deg, rgba(26,33,28,0.97), rgba(18,23,19,0.94));
-    border:1px solid #4A3E20; border-radius:12px; padding:10px 12px 9px;
-    box-shadow:0 6px 22px rgba(0,0,0,0.55); font-size:12px; color:var(--muted);
+    background:
+      radial-gradient(130% 100% at 50% 0%, rgba(38,52,42,0.96), rgba(16,24,18,0.97) 62%), #101812;
+    border:2px solid #8A6B2F; border-radius:12px; padding:10px 12px 9px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(217,164,74,0.16);
+    font-size:12px; color:var(--muted);
   }
   #tilePop::before{
-    content:''; position:absolute; top:-6px; left:50%; width:10px; height:10px;
+    content:''; position:absolute; top:-6.5px; left:50%; width:10px; height:10px;
     transform:translateX(-50%) rotate(45deg);
-    background:#1A211C; border-left:1px solid #4A3E20; border-top:1px solid #4A3E20;
+    background:#26342A; border-left:2px solid #8A6B2F; border-top:2px solid #8A6B2F;
   }
-  #tilePop.above::before{ top:auto; bottom:-6px; border:none;
-    border-right:1px solid #4A3E20; border-bottom:1px solid #4A3E20; background:#121713; }
-  .tp-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:6px}
+  #tilePop.above::before{ top:auto; bottom:-6.5px; border:none;
+    border-right:2px solid #8A6B2F; border-bottom:2px solid #8A6B2F; background:#131B14; }
+  .tp-head{
+    display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+    padding-bottom:6px; margin-bottom:6px;
+    border-bottom:1px solid transparent;
+    border-image:linear-gradient(90deg, transparent, rgba(180,155,98,0.5), transparent) 1;
+  }
   .tp-head b{color:var(--gold); font-family:Cinzel,serif; font-size:14px}
   .tp-owner{font-size:11px; text-align:right}
   .tp-row{padding:2px 0; font-size:11.5px}
@@ -94,10 +104,10 @@
   #ctx{
     font-size:12.5px; color:var(--muted); min-height:17px;
     margin:0 auto; text-align:center;
-    background:linear-gradient(180deg, rgba(26,33,28,0.94), rgba(18,23,19,0.85));
-    border:1px solid #4A3E20; border-radius:999px; padding:6px 16px;
+    background:linear-gradient(180deg, rgba(35,47,38,0.95), rgba(16,23,17,0.9));
+    border:1.5px solid #8A6B2F; border-radius:999px; padding:6px 16px;
     max-width:100%; box-sizing:border-box;
-    box-shadow:0 2px 10px rgba(0,0,0,0.4);
+    box-shadow:0 3px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(217,164,74,0.12);
   }
   #ctx b{color:var(--gold); font-family:Cinzel,serif; letter-spacing:.02em; font-weight:700}
   #actions{display:flex; gap:8px; flex-wrap:wrap}
@@ -111,12 +121,23 @@
   .panel{
     position:fixed; z-index:20; left:50%; transform:translateX(-50%);
     bottom:0; width:min(440px,100%); max-height:70vh; overflow-y:auto;
-    background:var(--panel); border:1px solid var(--line); border-bottom:0;
-    border-radius:12px 12px 0 0; padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(38,52,42,0.92), rgba(16,24,18,0.985) 60%), #101812;
+    border:2px solid #8A6B2F; border-bottom:0;
+    border-radius:14px 14px 0 0;
+    padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
     box-sizing:border-box; display:none;
+    box-shadow:0 -10px 40px rgba(0,0,0,0.65), inset 0 1px 0 rgba(217,164,74,0.18);
   }
   .panel.open{display:block}
-  .panel h2{font-family:Cinzel,serif; font-weight:700; font-size:16px; margin:0 0 4px; color:var(--gold)}
+  .panel h2{
+    font-family:Cinzel,serif; font-weight:700; font-size:16px; margin:0 0 2px;
+    color:var(--gold); text-align:center; letter-spacing:.04em;
+  }
+  .panel h2::after{
+    content:''; display:block; height:1px; margin:8px auto 6px; width:82%;
+    background:linear-gradient(90deg, transparent, rgba(180,155,98,0.55), transparent);
+  }
   .panel .sub{font-size:12px; color:var(--muted); margin:0 0 12px}
   .row{display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line)}
   .row .t{flex:1; min-width:0}
@@ -207,10 +228,12 @@
   .cta:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
   #toast{
     position:fixed; top:calc(env(safe-area-inset-top,0px) + 104px); left:50%;
-    transform:translateX(-50%); z-index:25; background:var(--panel2);
-    border:1px solid var(--line); border-radius:8px; padding:8px 14px;
+    transform:translateX(-50%); z-index:25;
+    background:linear-gradient(180deg, rgba(38,52,42,0.97), rgba(18,26,20,0.97));
+    border:1.5px solid #8A6B2F; border-radius:9px; padding:8px 14px;
     font-size:12.5px; opacity:0; transition:opacity .3s; pointer-events:none;
     max-width:85vw; text-align:center;
+    box-shadow:0 6px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(217,164,74,0.15);
   }
   @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
   /* pan må ikke låse på overlays: info-lag slipper touch igennem,
@@ -218,6 +241,9 @@
   .hud{pointer-events:none}
   .hud .hbtn{pointer-events:auto}
   #selCard,#toast{pointer-events:none}
+  @media (max-width:480px){ .hud .brand{display:none} }
+  .hud{min-width:0}
+  .hud .brand{flex-shrink:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .hdim{font-size:10px; color:var(--muted); opacity:.85}
   .hdim b{color:var(--gold); font-variant-numeric:tabular-nums}
   .foot{pointer-events:none}
@@ -230,9 +256,9 @@
 
 <div class="hud">
   <div class="brand">War of the Realm</div>
-  <div class="stat">Day <b id="hDay">1</b> <span class="hdim">next in <b id="hNext">–</b></span></div>
+  <div class="stat">Day <b id="hDay">1</b> <span class="hdim" title="New day (guild points) in">⏳<b id="hNext">–</b></span></div>
   <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
-  <div class="stat">Season <b id="hSeason">–</b></div>
+  <div class="stat" title="Season time left">🗓 <b id="hSeason">–</b></div>
   <div class="spacer"></div>
   <button class="hbtn" id="bUpg">Upgrades</button>
   <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
@@ -1332,7 +1358,7 @@ let tilePopAt=null;
 function hideTilePop(){ tilePopAt=null; document.getElementById('tilePop').hidden=true; }
 function updateTilePop(){
   const el=document.getElementById('tilePop');
-  if(!tilePopAt||uiFocus!=='field'){ el.hidden=true; return; }
+  if(!tilePopAt||uiFocus!=='field'||document.querySelector('.panel.open')){ el.hidden=true; return; }
   const p=hexToPx(tilePopAt.q,tilePopAt.r);
   const sx=(p.x-cam.x)*cam.z+innerWidth/2, sy=(p.y-cam.y)*cam.z+innerHeight/2;
   el.hidden=false;
