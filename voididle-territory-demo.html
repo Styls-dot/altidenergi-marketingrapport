@@ -96,6 +96,12 @@
   .row .t{flex:1; min-width:0}
   .row .t b{display:block; font-weight:500; font-size:13px}
   .row .t span{font-size:11.5px; color:var(--muted)}
+  .be-row{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0}
+  .be-sw{width:28px; height:28px; border-radius:6px; border:2px solid transparent; cursor:pointer}
+  .be-sw.on{border-color:#E8E4D8; box-shadow:0 0 0 1px rgba(232,228,216,0.4)}
+  .be-sig{width:32px; height:32px; border-radius:6px; background:var(--panel2);
+    border:1px solid var(--line); font-size:16px; cursor:pointer; line-height:1}
+  .be-sig.on{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold)}
   .sg-side{margin:10px 0}
   .sg-head{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; font-weight:500}
   .sg-bar{height:9px; border-radius:4px; background:var(--ink); border:1px solid var(--line); overflow:hidden}
@@ -212,6 +218,7 @@
   <h2>Sæsontræet</h2>
   <p class="sub">Købes for sæsonpoint ✦ (1 pr. felt pr. døgn, spirit veins giver 2). Nulstilles ved sæsonslut.</p>
   <div id="upgList"></div>
+  <div id="bannerEd"></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Luk</button>
   <button class="abtn" style="width:100%;margin-top:8px;color:var(--cinnabar)" onclick="resetDemo()">Nulstil demoen (start forfra)</button>
 </div>
@@ -462,7 +469,8 @@ function loadGame(){
     flags=s.flags||[];
     // gamle gemmer mangler navne/tags — udfyld
     const TAGS=['JADE','STRM','AZUR','TÅGE'];
-    guilds.forEach((g,i)=>{ if(!g.tag) g.tag=TAGS[i%TAGS.length]; });
+    const DEFSIG=['🐉','🐯','🌊','🌙'];
+    guilds.forEach((g,i)=>{ if(!g.tag) g.tag=TAGS[i%TAGS.length]; if(!g.sigil) g.sigil=DEFSIG[i%DEFSIG.length]; });
     units.forEach((u,i)=>{
       if(!u.name) u.name=NAMES[i%NAMES.length];
       if(!u.cp) u.cp=80+Math.floor(Math.random()*81);
@@ -512,9 +520,11 @@ function pickAnchor(){
   return cands[0].f;
 }
 const NAMES=['Li Wei','Mei Lin','Feng Yu','Shen Hao','Xiao Lan','Zhao Jun','Han Qing','Yun Zhi','Bai Xue','Tao Ren','Jin Hua','Lu Chen','Wu Kang','Su Yan','Guo Fei','Ding Mo'];
+const BANNER_COLORS=['#57B98A','#D25B4A','#5B8FD2','#9B6FD2','#D9A44A','#5BD2C8','#D25BA8','#D2874A'];
+const SIGILS=['🐉','🐯','🦅','🐺','🌊','🌙','☀️','🌸','⚔️','🔥'];
 let nameIdx=0;
-function foundGuild(name,color,tag,borgCell,isPlayer){
-  const g={id:guilds.length,name,color,tag,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
+function foundGuild(name,color,tag,sigil,borgCell,isPlayer){
+  const g={id:guilds.length,name,color,tag,sigil,borg:{q:borgCell.q,r:borgCell.r},pts:0,perm:0,
            player:!!isPlayer, protectedUntil:Date.now()+CFG.START_PROTECT_MS, captures:0};
   guilds.push(g);
   for(const c of disc(borgCell,1)){
@@ -880,6 +890,29 @@ function buyUpg(id){
   if(id==='tower'||id==='fort'){ u.buy(); renderUpg(); updateHud(); return; } // betales ved placering
   me.pts-=u.cost(); u.buy(); renderUpg(); updateHud();
 }
+/* ============ Guild-banner: farve + tegn (i spillet: guild-indstillinger) ==== */
+function renderBannerEditor(){
+  const me=guilds.find(g=>g.player);
+  if(!me){ document.getElementById('bannerEd').innerHTML=''; return; }
+  document.getElementById('bannerEd').innerHTML=
+    '<h2 style="margin-top:16px">Guild-banner</h2>'
+    +'<p class="sub">Farve og tegn bruges på felter, figurer og kortet</p>'
+    +'<div class="be-row">'+BANNER_COLORS.map(c=>
+      '<button class="be-sw'+(me.color===c?' on':'')+'" style="background:'+c+'" onclick="setGuildColor(\''+c+'\')" aria-label="farve"></button>').join('')+'</div>'
+    +'<div class="be-row">'+SIGILS.map(s=>
+      '<button class="be-sig'+(me.sigil===s?' on':'')+'" onclick="setGuildSigil(\''+s+'\')">'+s+'</button>').join('')+'</div>';
+}
+function setGuildColor(c){
+  const me=guilds.find(g=>g.player);
+  me.color=c; renderBannerEditor(); updateSelCard();
+  toast('Bannerfarven er hejst over riget');
+}
+function setGuildSigil(s){
+  const me=guilds.find(g=>g.player);
+  me.sigil=s; renderBannerEditor(); updateSelCard();
+  toast('Nyt banner-tegn: '+s);
+}
+
 function closePanels(){
   document.getElementById('pUpg').classList.remove('open');
   document.getElementById('pLog').classList.remove('open');
@@ -1132,7 +1165,7 @@ function updateSelCard(){
   if(av.src!==AVATAR_SRC) av.src=AVATAR_SRC;
   document.getElementById('scName').textContent=selUnit.name||'Kriger';
   const tagEl=document.getElementById('scTag');
-  tagEl.textContent=g.tag||''; tagEl.style.background=g.color;
+  tagEl.textContent=(g.sigil?g.sigil+' ':'')+(g.tag||''); tagEl.style.background=g.color;
   document.getElementById('scCp').textContent=selUnit.cp||100;
   document.getElementById('scGp').textContent=selUnit.gp||100;
   document.getElementById('scKp').textContent=selUnit.kp||100;
@@ -1426,6 +1459,23 @@ function draw(){
     }
     if(vis&&f.protectedUntil>now&&!isBorg){ ctx2.fillStyle='#8A958F'; ctx2.font='9px Poppins'; ctx2.fillText('🛡',p.x-HEX*0.42,p.y-HEX*0.42); }
     if(banner&&banner.q===f.q&&banner.r===f.r){ ctx2.fillStyle='#D9A44A'; ctx2.font='12px Poppins'; ctx2.fillText('🚩',p.x,p.y-HEX*0.55); }
+    // heraldik: lille guild-vimpel på ejede felter (borgen har sine egne flag)
+    if(vis&&info.owner!==null&&!isBorg&&cam.z>=0.8){
+      const hg=guilds[info.owner];
+      const bx=p.x+HEX*0.42, by=p.y-HEX*0.30;
+      ctx2.strokeStyle='rgba(45,33,16,0.9)'; ctx2.lineWidth=1.1;
+      ctx2.beginPath(); ctx2.moveTo(bx,by+9); ctx2.lineTo(bx,by-5); ctx2.stroke();
+      ctx2.beginPath();
+      ctx2.moveTo(bx,by-5); ctx2.lineTo(bx+10,by-2.4); ctx2.lineTo(bx,by+0.2);
+      ctx2.closePath();
+      ctx2.fillStyle=hg.color; ctx2.fill();
+      ctx2.strokeStyle='rgba(0,0,0,0.35)'; ctx2.lineWidth=0.6; ctx2.stroke();
+      if(cam.z>=1.5&&hg.sigil){
+        ctx2.font='5.5px Poppins'; ctx2.textAlign='left'; ctx2.textBaseline='middle';
+        ctx2.fillText(hg.sigil,bx+1.6,by-2.3);
+        ctx2.textAlign='center';
+      }
+    }
     // leder-ordrer: ⚔ angrebs-/🛡 forsvars-flag med pulserende ring
     if(vis){
       const fl=flags.find(x=>x.q===f.q&&x.r===f.r);
@@ -1592,6 +1642,23 @@ function draw(){
         ctx2.beginPath(); ctx2.ellipse(x,ay+5,6.5,2.6,0,0,7);
         ctx2.strokeStyle='rgba(217,164,74,0.65)'; ctx2.lineWidth=1.2; ctx2.stroke();
       }
+      // figuren bærer sit guild-banner, så man kan se hvem der er hvor
+      {
+        const bg2=guilds[u.g];
+        const px2=x+7, ptop=ay-15;
+        ctx2.strokeStyle='rgba(45,33,16,0.9)'; ctx2.lineWidth=1;
+        ctx2.beginPath(); ctx2.moveTo(px2,ay+3); ctx2.lineTo(px2,ptop); ctx2.stroke();
+        ctx2.beginPath();
+        ctx2.moveTo(px2,ptop); ctx2.lineTo(px2+9,ptop+2.5); ctx2.lineTo(px2,ptop+5);
+        ctx2.closePath();
+        ctx2.fillStyle=bg2.color; ctx2.fill();
+        ctx2.strokeStyle='rgba(0,0,0,0.35)'; ctx2.lineWidth=0.6; ctx2.stroke();
+        if(bg2.sigil){
+          ctx2.font='5px Poppins'; ctx2.textAlign='left'; ctx2.textBaseline='middle';
+          ctx2.fillText(bg2.sigil,px2+1.4,ptop+2.6);
+          ctx2.textAlign='center';
+        }
+      }
       drawAvatar(x,ay,guilds[u.g].color,u===selUnit,guilds[u.g].player);
       // navneskilt med guild-tag under figuren
       if(cam.z>=0.7){
@@ -1660,11 +1727,11 @@ document.getElementById('bStart').addEventListener('click',()=>{
   setCtx('<b>Vælg dit borgfelt</b> — tap et felt i det oplyste område (25×25)');
 });
 function startGame(c){
-  const me=foundGuild('Jadefloden','#57B98A','JADE',c,true);
-  const AI=[['Stormkløften','#D25B4A','STRM'],['Azurhavet','#5B8FD2','AZUR'],['Tågebjerget','#9B6FD2','TÅGE']];
-  for(const[n,col,tag]of AI){
+  const me=foundGuild('Jadefloden','#57B98A','JADE','🐉',c,true);
+  const AI=[['Stormkløften','#D25B4A','STRM','🐯'],['Azurhavet','#5B8FD2','AZUR','🌊'],['Tågebjerget','#9B6FD2','TÅGE','🌙']];
+  for(const[n,col,tag,sig]of AI){
     const a=pickAnchor();
-    if(a) foundGuild(n,col,tag,a,false);
+    if(a) foundGuild(n,col,tag,sig,a,false);
   }
   phase='play';
   lastDayTick=Date.now();
@@ -1678,7 +1745,8 @@ function startGame(c){
 
 /* ================= Paneler ================= */
 document.getElementById('bUpg').addEventListener('click',()=>{
-  closePanels(); renderUpg(); document.getElementById('pUpg').classList.add('open');
+  closePanels(); renderUpg(); renderBannerEditor();
+  document.getElementById('pUpg').classList.add('open');
 });
 document.getElementById('bLog').addEventListener('click',()=>{
   closePanels(); unread=0; updateHud();
