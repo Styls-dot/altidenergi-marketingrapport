@@ -1145,8 +1145,11 @@ function handleTap(sx,sy){
     else toast('Banneret kan kun plantes på synlige felter');
     bannerMode=false; return;
   }
-  // ryk valgt enhed (eller hele gruppen, hvis lederen er valgt)?
+  // oplyst felt: første tap viser feltinfo med Gå hertil/Capture-knap,
+  // andet tap på samme felt udfører handlingen direkte (hurtig-flowet)
   if(selUnit&&reach.has(k)){
+    const armed=uiFocus==='field'&&selField&&selField.q===c.q&&selField.r===c.r;
+    if(!armed){ selField=f; describeField(f); return; }
     const kind=reach.get(k);
     if(party&&selUnit.id===party.leader){ partyMove(c.q,c.r); select(selUnit); return; }
     if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Erobring i gang…':'Mobilisering — kampen starter om lidt'); }
@@ -1251,7 +1254,7 @@ function select(u){
   const inParty=party&&party.members.includes(u.id);
   const isLead=party&&u.id===party.leader;
   setCtx('<b>'+(u.name||'Kriger')+'</b> · '+u.mp+'/'+CFG.MP_MAX+' bevægelse'
-    +(isLead?' · 👥 gruppeleder':inParty?' · 👥 i gruppe':'')+' · tap et oplyst felt');
+    +(isLead?' · 👥 gruppeleder':inParty?' · 👥 i gruppe':'')+' · tap et felt for info — tap igen for at rykke');
   const acts=[{label:'🚩 Plant banner',fn:'armBanner()',gold:true}];
   if(isLead) acts.push({label:'👥 Opløs gruppe',fn:'disbandParty()'});
   else if(!party){
@@ -1302,6 +1305,7 @@ function describeField(f){
 /* ============ Kø-bevægelse: "Gå hertil" / "Capture" med automatisk rute ===== */
 function routeTo(q,r,attack){
   const u=selUnit; if(!u||u.marching) return;
+  if(party&&u.id===party.leader&&dist(u,{q,r})===1){ partyMove(q,r); return; }
   const me=guilds.find(g=>g.player);
   // BFS gennem eget territorium; ved angreb er målet det fremmede felt som sidste skridt
   const startK=key(u.q,u.r);
