@@ -65,6 +65,30 @@
     display:flex; flex-direction:column; gap:8px; pointer-events:none;
   }
   .foot>*{pointer-events:auto}
+  #tilePop{
+    position:fixed; z-index:40; width:238px; transform:translateX(-50%);
+    background:linear-gradient(180deg, rgba(26,33,28,0.97), rgba(18,23,19,0.94));
+    border:1px solid #4A3E20; border-radius:12px; padding:10px 12px 9px;
+    box-shadow:0 6px 22px rgba(0,0,0,0.55); font-size:12px; color:var(--muted);
+  }
+  #tilePop::before{
+    content:''; position:absolute; top:-6px; left:50%; width:10px; height:10px;
+    transform:translateX(-50%) rotate(45deg);
+    background:#1A211C; border-left:1px solid #4A3E20; border-top:1px solid #4A3E20;
+  }
+  #tilePop.above::before{ top:auto; bottom:-6px; border:none;
+    border-right:1px solid #4A3E20; border-bottom:1px solid #4A3E20; background:#121713; }
+  .tp-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:6px}
+  .tp-head b{color:var(--gold); font-family:Cinzel,serif; font-size:14px}
+  .tp-owner{font-size:11px; text-align:right}
+  .tp-row{padding:2px 0; font-size:11.5px}
+  .tp-dim{opacity:.6}
+  .tp-pows{margin:6px 0; border-top:1px solid rgba(74,62,32,.5); border-bottom:1px solid rgba(74,62,32,.5); padding:5px 0}
+  .tp-pow{display:flex; justify-content:space-between; padding:2px 0; font-size:11.5px; opacity:.65}
+  .tp-pow.main{opacity:1; color:#E8E4D8}
+  .tp-pow.main b{color:var(--gold)}
+  .tp-acts{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  .tp-acts .abtn{padding:7px 10px; font-size:12px}
   #ctx{
     font-size:12.5px; color:var(--muted); min-height:17px;
     margin:0 auto; text-align:center;
@@ -201,6 +225,7 @@
   <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
 </div>
 
+<div id="tilePop" hidden></div>
 <div id="selCard" hidden>
   <img id="scAvatar" alt="">
   <div class="sc-main">
@@ -1240,7 +1265,7 @@ function computeReach(u){
   }
 }
 function select(u){
-  uiFocus='unit';
+  uiFocus='unit'; hideTilePop();
   selUnit=u; selField=null; reach=new Map();
   updateSelCard();
   if(!u){ setCtx('Demo · 1 spildøgn = 30 sekunder'); setActions([]); return; }
@@ -1264,43 +1289,85 @@ function select(u){
   setActions(acts);
 }
 function armBanner(){ bannerMode=true; toast('Tap et synligt felt'); }
+let tilePopAt=null;
+function hideTilePop(){ tilePopAt=null; document.getElementById('tilePop').hidden=true; }
+function updateTilePop(){
+  const el=document.getElementById('tilePop');
+  if(!tilePopAt||uiFocus!=='field'){ el.hidden=true; return; }
+  const p=hexToPx(tilePopAt.q,tilePopAt.r);
+  const sx=(p.x-cam.x)*cam.z+innerWidth/2, sy=(p.y-cam.y)*cam.z+innerHeight/2;
+  el.hidden=false;
+  const half=el.offsetWidth/2, m=8;
+  el.style.left=Math.max(half+m,Math.min(innerWidth-half-m,sx))+'px';
+  const below=sy+HEX*cam.z*0.85;
+  if(below+el.offsetHeight>innerHeight-140){ // ikke plads under: vis over feltet
+    el.classList.add('above');
+    el.style.top=(sy-HEX*cam.z*0.85-el.offsetHeight)+'px';
+  } else {
+    el.classList.remove('above');
+    el.style.top=below+'px';
+  }
+}
 function describeField(f){
   uiFocus='field';
   const me=guilds.find(g=>g.player), now=Date.now(), k=key(f.q,f.r);
   const known=visSet.has(k)?f:(seen.get(k)||null);
-  if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
+  const el=document.getElementById('tilePop');
+  tilePopAt={q:f.q,r:f.r}; setActions([]);
+  if(!known){ el.innerHTML='<div class="tp-head"><b>Ukendt land</b></div><div class="tp-row">Tågen skjuler dette felt — kom tættere på, eller byg et 🗼 vagttårn.</div>'; el.hidden=false; updateTilePop(); return; }
   const TERR={normal:'Eng',farm:'Mark',forest:'Skov',mountain:'Bjerg',vein:'Guldåre'};
   const gOwn=known.owner===null?null:guilds[known.owner];
   const who=gOwn?((gOwn.sigil?sigilTag(gOwn.sigil,11)+' ':'')+gOwn.name+(visSet.has(k)?'':' <i>(sidst kendt)</i>')):'Neutralt';
   const isBorgF=gOwn&&gOwn.borg.q===f.q&&gOwn.borg.r===f.r;
-  const pow=(known.type==='forest'||known.type==='mountain')?'🪓 gather-magt':known.type==='vein'?'🔨 craft-magt':'⚔ combat-magt';
-  const march=known.type==='mountain'?'+100% marchtid':known.type==='forest'?'+50% marchtid':'normal march';
-  const dfn=(known.type==='mountain'?' · 🛡 +60% forsvar':'')+(visSet.has(k)&&f.fort?' · 🏰 +75% forsvar':'');
-  const bld=visSet.has(k)&&f.building?' · 🔨 byggeri '+Math.round(f.building.progress/f.building.target*100)+'%'
-    :visSet.has(k)&&f.tower?' · 🗼 syn +2':'';
-  const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
-  const info=isBorgF?'⛩ Hovedborg — kan ikke erobres'
-    :'✦ '+yieldOf(known)+'/døgn (efter 1 døgns eje) · 🥾 '+march+' · '+pow+dfn+bld;
-  setCtx('<b>'+(TERR[known.type]||'Eng')+'</b> · '+who+prot
-    +'<br><span style="font-size:11px;opacity:.85">'+info+'</span>');
-  // handlinger på feltet: gå/capture-ordrer, byggeordrer og flag
+  const march=known.type==='mountain'?'+100% marchtid (tungt terræn)':known.type==='forest'?'+50% marchtid (tæt skov)':'normal marchtid';
+  // magt-listen: hovedmagten erobrer med 100%, de andre med 20%
+  const mainP=(known.type==='forest'||known.type==='mountain')?'gp':known.type==='vein'?'kp':'cp';
+  const powRows=[['cp','⚔','Combat power'],['gp','🪓','Gather power'],['kp','🔨','Craft power']].map(([kk,ic,nm])=>
+    '<div class="tp-pow'+(kk===mainP?' main':'')+'"><span>'+ic+' '+nm+'</span><b>'+(kk===mainP?100:Math.round(CFG.OFF_POWER*100))+'%</b></div>').join('');
+  let rows='';
+  if(isBorgF){
+    rows='<div class="tp-row">⛩ Hovedborg — kan ikke erobres</div>'
+      +'<div class="tp-row">👁 Ser '+CFG.VISION_BORG+' felter ud i alle retninger</div>';
+  } else {
+    rows='<div class="tp-row">✦ '+yieldOf(known)+' point/døgn <span class="tp-dim">(efter 1 døgns eje)</span></div>'
+      +'<div class="tp-row">🥾 '+march+'</div>'
+      +'<div class="tp-pows">'+powRows+'</div>';
+    const dfnParts=[];
+    if(known.type==='mountain') dfnParts.push('🛡 +60% forsvar (bjerg)');
+    if(visSet.has(k)&&f.fort) dfnParts.push('🏰 +75% forsvar (fort)');
+    if(visSet.has(k)&&f.tower) dfnParts.push('🗼 vagttårn — syn +2');
+    if(visSet.has(k)&&f.building){
+      const B=BUILDINGS[f.building.kind];
+      dfnParts.push('🔨 '+(B?B.name.toLowerCase():'byggeri')+' '+Math.round(f.building.progress/f.building.target*100)+'% færdigt');
+    }
+    for(const d of dfnParts) rows+='<div class="tp-row">'+d+'</div>';
+    if(visSet.has(k)&&f.protectedUntil>now){
+      const s=Math.ceil((f.protectedUntil-now)/1000);
+      rows+='<div class="tp-row">🛡 beskyttet endnu '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+'</div>';
+    }
+  }
+  // handlinger i vinduet: gå/capture, flag og byggeordrer
   const acts=[];
-  if(visSet.has(k)&&selUnit&&!selUnit.marching&&!(selUnit.q===f.q&&selUnit.r===f.r)){
-    if(f.owner===me.id) acts.push({label:'🥾 Gå hertil',fn:'routeTo('+f.q+','+f.r+',false)',gold:true});
-    else if(f.protectedUntil<=Date.now()&&!(f.owner!==null&&f.q===guilds[f.owner].borg.q&&f.r===guilds[f.owner].borg.r))
-      acts.push({label:'⚔ Capture',fn:'routeTo('+f.q+','+f.r+',true)',gold:true});
+  if(visSet.has(k)&&selUnit&&!selUnit.marching&&!(selUnit.q===f.q&&selUnit.r===f.r)&&!isBorgF){
+    if(f.owner===me.id) acts.push({label:'🥾 Gå hertil',fn:'hideTilePop();routeTo('+f.q+','+f.r+',false)',gold:true});
+    else if(f.protectedUntil<=now&&!(f.owner!==null&&guilds[f.owner].protectedUntil>now))
+      acts.push({label:'⚔ Capture',fn:'hideTilePop();routeTo('+f.q+','+f.r+',true)',gold:true});
   }
   if(visSet.has(k)){
     const fl=flags.find(x=>x.q===f.q&&x.r===f.r);
     if(fl) acts.push({label:'✖ Fjern flag',fn:'removeFlag('+f.q+','+f.r+')'});
     else if(f.owner===me.id) acts.push({label:'🛡 Forsvars-flag',fn:'setFlag('+f.q+','+f.r+',\'def\')'});
-    else acts.push({label:'⚔ Angrebs-flag',fn:'setFlag('+f.q+','+f.r+',\'att\')',gold:true});
-    if(f.owner===me.id&&!f.tower&&!f.fort&&!f.building){
+    else if(!isBorgF) acts.push({label:'⚔ Angrebs-flag',fn:'setFlag('+f.q+','+f.r+',\'att\')'});
+    if(f.owner===me.id&&!f.tower&&!f.fort&&!f.building&&!isBorgF){
       acts.push({label:'Byg 🗼 '+CFG.TOWER_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'tower\')'});
       acts.push({label:'Byg 🏰 '+CFG.FORT_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'fort\')'});
     }
   }
-  setActions(acts);
+  el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Eng')+'</b><span class="tp-owner">'+who+'</span></div>'
+    +rows
+    +(acts.length?'<div class="tp-acts">'+acts.map(b=>'<button class="abtn'+(b.gold?' gold':'')+'" onclick="'+b.fn+'">'+b.label+'</button>').join('')+'</div>':'');
+  el.hidden=false;
+  updateTilePop();
 }
 /* ============ Kø-bevægelse: "Gå hertil" / "Capture" med automatisk rute ===== */
 function routeTo(q,r,attack){
@@ -1764,6 +1831,7 @@ function draw(){
   }
   ctx2.fillStyle=draw._vg;
   ctx2.fillRect(0,0,innerWidth,innerHeight);
+  updateTilePop();
   requestAnimationFrame(draw);
 }
 
