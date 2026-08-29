@@ -211,6 +211,15 @@
     max-width:85vw; text-align:center;
   }
   @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
+  /* pan må ikke låse på overlays: info-lag slipper touch igennem,
+     kun knapper fanger den. Popoveren kan selv panorere kortet. */
+  .hud{pointer-events:none}
+  .hud .hbtn{pointer-events:auto}
+  #selCard,#toast{pointer-events:none}
+  .foot{pointer-events:none}
+  .foot>*{pointer-events:none}
+  .foot .abtn{pointer-events:auto}
+  #tilePop{touch-action:none}
 </style>
 
 <canvas id="map"></canvas>
@@ -1099,15 +1108,15 @@ function resize(){
 addEventListener('resize',resize); resize();
 
 const ptrs=new Map(); let dragStart=null,camStart=null,pinch0=0,z0=1,moved=false;
-cv.addEventListener('pointerdown',e=>{
-  cv.setPointerCapture(e.pointerId);
+function ptrDown(e){
+  e.currentTarget.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===1){ dragStart={x:e.clientX,y:e.clientY}; camStart={...cam}; moved=false; }
   else if(ptrs.size===2){
     const[a,b]=[...ptrs.values()]; pinch0=Math.hypot(a.x-b.x,a.y-b.y); z0=cam.z;
   }
-});
-cv.addEventListener('pointermove',e=>{
+}
+function ptrMove(e){
   if(!ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===1&&dragStart){
@@ -1120,14 +1129,21 @@ cv.addEventListener('pointermove',e=>{
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     cam.z=Math.max(.35,Math.min(6,z0*d/pinch0));
   }
-});
-cv.addEventListener('pointerup',e=>{
+}
+function ptrUp(e){
   const wasTap=ptrs.size===1&&!moved;
   ptrs.delete(e.pointerId);
-  if(wasTap) handleTap(e.clientX,e.clientY);
+  if(wasTap&&e.currentTarget===cv) handleTap(e.clientX,e.clientY);
   if(!ptrs.size){dragStart=null;}
-});
-cv.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
+}
+function ptrCancel(e){ ptrs.delete(e.pointerId); }
+// pan virker fra både kortet og felt-vinduets baggrund (knapper undtaget)
+for(const el of [cv,document.getElementById('tilePop')]){
+  el.addEventListener('pointerdown',e=>{ if(el!==cv&&e.target.closest('button')) return; ptrDown(e); });
+  el.addEventListener('pointermove',ptrMove);
+  el.addEventListener('pointerup',ptrUp);
+  el.addEventListener('pointercancel',ptrCancel);
+}
 cv.addEventListener('wheel',e=>{
   e.preventDefault();
   cam.z=Math.max(.35,Math.min(6,cam.z*(e.deltaY<0?1.12:0.89)));
