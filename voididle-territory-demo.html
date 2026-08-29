@@ -1242,12 +1242,20 @@ function describeField(f){
   const me=guilds.find(g=>g.player), now=Date.now(), k=key(f.q,f.r);
   const known=visSet.has(k)?f:(seen.get(k)||null);
   if(!known){ setCtx('Ukendt land — tågen skjuler det'); setActions([]); return; }
-  const who=known.owner===null?'Neutralt':(guilds[known.owner].name+(visSet.has(k)?'':' <i>(sidst kendte info)</i>'));
-  const typ=known.type==='vein'?' · Guldåre 🔨 (craft skills, 3 ✦/døgn)':known.type==='farm'?' · Mark (2 ✦/døgn)':known.type==='mountain'?' · Bjerg 🪓 (gather skills, stærkt forsvar, tung march)':known.type==='forest'?' · Skov 🪓 (gather skills, langsom march)':'';
+  const TERR={normal:'Eng',farm:'Mark',forest:'Skov',mountain:'Bjerg',vein:'Guldåre'};
+  const gOwn=known.owner===null?null:guilds[known.owner];
+  const who=gOwn?((gOwn.sigil?gOwn.sigil+' ':'')+gOwn.name+(visSet.has(k)?'':' <i>(sidst kendt)</i>')):'Neutralt';
+  const isBorgF=gOwn&&gOwn.borg.q===f.q&&gOwn.borg.r===f.r;
+  const pow=(known.type==='forest'||known.type==='mountain')?'🪓 gather-magt':known.type==='vein'?'🔨 craft-magt':'⚔ combat-magt';
+  const march=known.type==='mountain'?'+100% marchtid':known.type==='forest'?'+50% marchtid':'normal march';
+  const dfn=(known.type==='mountain'?' · 🛡 +60% forsvar':'')+(visSet.has(k)&&f.fort?' · 🏰 +75% forsvar':'');
   const bld=visSet.has(k)&&f.building?' · 🔨 byggeri '+Math.round(f.building.progress/f.building.target*100)+'%'
-    :visSet.has(k)&&f.fort?' · 🏰 Fort (+75% forsvar)':visSet.has(k)&&f.tower?' · 🗼 Vagttårn (syn +2)':'';
+    :visSet.has(k)&&f.tower?' · 🗼 syn +2':'';
   const prot=visSet.has(k)&&f.protectedUntil>now?' · 🛡 beskyttet':'';
-  setCtx('<b>'+who+'</b>'+typ+bld+prot);
+  const info=isBorgF?'⛩ Hovedborg — kan ikke erobres'
+    :'✦ '+yieldOf(known)+'/døgn (efter 1 døgns eje) · 🥾 '+march+' · '+pow+dfn+bld;
+  setCtx('<b>'+(TERR[known.type]||'Eng')+'</b> · '+who+prot
+    +'<br><span style="font-size:11px;opacity:.85">'+info+'</span>');
   // handlinger på feltet: gå/capture-ordrer, byggeordrer og flag
   const acts=[];
   if(visSet.has(k)&&selUnit&&!selUnit.marching&&!(selUnit.q===f.q&&selUnit.r===f.r)){
