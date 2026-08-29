@@ -1350,8 +1350,9 @@ function draw(){
                :(info.type==='vein'&&veinSprite)?veinSprite
                :(info.type==='farm'&&farmSprite)?farmSprite
                :(!busy&&meadowSprite)?meadowSprite:tileSprite;
-      // variation: alle tiles undtagen marker roteres deterministisk i 60°-trin
-      const rotStep=info.type==='farm'?0:((f.q*73856093^f.r*19349663)>>>0)%6;
+      // variation: tiles roteres deterministisk i 60°-trin — undtagen marker
+      // (rækkerne skal vende rigtigt) og bjerge (lysretningen afslører drejningen)
+      const rotStep=(info.type==='farm'||info.type==='mountain')?0:((f.q*73856093^f.r*19349663)>>>0)%6;
       if(rotStep){
         ctx2.save();
         ctx2.translate(p.x,p.y); ctx2.rotate(rotStep*Math.PI/3);
