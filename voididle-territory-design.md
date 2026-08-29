@@ -178,7 +178,42 @@ Pr. deltagende hold, sorteret efter føring:
   belejring startet/felt tabt/vundet, banner, byggeri, nye kapløbs-deltagere,
   point. 24 t-vinduet gør "opdaget ved næste login" tidsnok.
 
-## 15. Aflæselighed på kortet (fastlagt i demoen)
+## 15. Guild-identitet og opslag (den store guild-opdatering)
+
+Krigen om Riget rulles ud sammen med en bredere guild-opdatering, hvor
+guild-tabben bliver holdets samlingspunkt:
+
+**Heraldik (bygget i demoen).** Hver guild vælger **bannerfarve** (12
+illustrerede bannere) og **sigil** (29 guld-tegn: dyr, natur, våben og
+redskaber — 348 unikke kombinationer) i guild-indstillingerne. Banneret
+vises på alle ejede felter, bæres af hver figur på kortet, og sigilet
+tegnes på stoffet med mørk silhuet, i tag-chippen og i felt-vinduet.
+Server: `banner_color` + `sigil` på guilds-tabellen, kun leder/vice kan
+ændre; eksponeres via territory `/state`, så fjenders bannere følger med
+fog-reglerne.
+
+**Guild-opslag (announcements).** Ledelsen kan skrive ét fast opslag til
+holdet (community-forslag — kendt fra lignende spil):
+
+- **Hvem:** leder og vice kan skrive/redigere; officer kan ikke (holdes
+  simpelt fra start). Maks ~500 tegn, ren tekst.
+- **Hvor det vises:** 📌 fast øverst i guild-tabben med forfatter og
+  tidsstempel — og som **popup når spilleren henter offline-tid**, hvis
+  opslaget er nyt siden sidst ("mens du var væk"-skærmen er det sikreste
+  sted at ramme alle).
+- **Ulæst-logik:** klienten husker `announcement_seen_at`; nyt/ændret
+  opslag giver badge på guild-tabben og én linje i begivenhedsloggen
+  ("📣 Nyt opslag fra ledelsen").
+- **Misbrug:** redigering er rate-limited (fx 1 pr. 5 min), og opslag
+  går gennem samme tekstfilter som chatten.
+- **Server:** `announcement`, `announcement_by`, `announcement_at` på
+  guilds-tabellen + `POST /api/guild/announcement` (leder/vice). Klient:
+  GuildPanel-banner + offline-claim-modalen.
+
+Sammen med krigs-tabben, sæsonpoint i guild-butikken og heraldikken er
+det én samlet "guild content update".
+
+## 16. Aflæselighed på kortet (fastlagt i demoen)
 
 - Avatarer: spillets Character-ikon for egne figurer, navneskilt med guild-tag
   under; fjender i guildfarve. Avatarer **mod-skaleres** (z^0,4), så de kun
@@ -188,11 +223,13 @@ Pr. deltagende hold, sorteret efter føring:
   erobringer giver ekspanderende ring-effekt; tryk-blink på hvert tap;
   bekræftelses-trin på borg-placering.
 
-## 16. Implementeringsstatus og faser
+## 17. Implementeringsstatus og faser
 
 - **Demo (komplet spilbar spec):** alt ovenstående kører i
   `voididle-territory-demo.html` med accelereret tid (1 døgn = 30 s) og
-  localStorage-persistens (op til 3 døgns offline-opsamling).
+  localStorage-persistens (op til 3 døgns offline-opsamling) — inkl.
+  heraldik (12 bannere × 29 sigiler) og felt-popover med magt-liste
+  (hovedmagt 100 %, øvrige 20 %).
 - **Spillet (`feature/territory`, bag flag `territory_config.enabled`):**
   fase-1-skelet er bygget (kort, spawn, fog, marcher u. rejsetid, simple
   belejringer, point, admin-endpoints). Skal opdateres med: rejsetid/
@@ -201,7 +238,7 @@ Pr. deltagende hold, sorteret efter føring:
 - Flag er OFF som default; admins ser altid tabben; alle tal kan overstyres
   på runtime via `territory_config` (accelereret testsæson på staging).
 
-## 17. Tal til balancering (demo-værdier → reelle udgangspunkter)
+## 18. Tal til balancering (demo-værdier → reelle udgangspunkter)
 
 | Parameter | Reelt udgangspunkt |
 |---|---|
