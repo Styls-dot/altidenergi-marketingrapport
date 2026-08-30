@@ -290,7 +290,10 @@
   .war-main{flex:1; min-width:0}
   .war-main span{display:block; font-size:10.5px; color:var(--muted)}
   .st-break{display:flex; justify-content:space-between; font-size:12px; padding:3px 0}
+  .st-break{align-items:center}
   .st-break .l{color:var(--muted)}
+  .st-break img.tt{width:26px; height:30px; object-fit:contain; vertical-align:-10px; margin-right:7px}
+  .st-break .lbl{display:inline-flex; align-items:center}
   .st-total{border-top:1px solid rgba(74,62,32,0.5); margin-top:6px; padding-top:7px; font-size:13px}
   .st-total b{color:var(--gold)}
   .lb-row{display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:8px;
@@ -1141,6 +1144,15 @@ const UPG=[
 ];
 // Bygninger placeres nu direkte: tap et eget felt → "Byg 🗼/🏰" i handlingsbjælken.
 const ROLE_LABEL={leader:'👑 Leader',vice:'🎖 Vice',officer:'⚔ Officer',member:'Member'};
+const TILE_THUMB={};
+function tileThumb(type){
+  if(TILE_THUMB[type]) return TILE_THUMB[type];
+  const spr={normal:meadowSprite,farm:farmSprite,forest:forestSprite,mountain:mtnSprite,vein:veinSprite}[type];
+  if(!spr||!spr.width) return null;
+  const c=document.createElement('canvas'); c.width=44; c.height=50;
+  c.getContext('2d').drawImage(spr,0,0,c.width,c.height);
+  try{ return TILE_THUMB[type]=c.toDataURL('image/webp',0.72); }catch(e){ return null; }
+}
 function unitPosText(u){
   if(u.marching) return 'marching → ('+u.marching.tq+','+u.marching.tr+')';
   const f=F(u.q,u.r); const t=f?(TERR_NAME[f.type]||'Meadow'):'?';
@@ -1274,9 +1286,11 @@ function renderGuildInfo(){
   const cnt={normal:0,farm:0,forest:0,mountain:0,vein:0};
   for(const f of fields.values()) if(f.owner===me.id) cnt[f.type]=(cnt[f.type]||0)+1;
   h+='<div class="gi-sec">Season · '+seasonLeft+' day(s) left</div>';
-  for(const tp of ['meadow','farm','forest','mountain','vein'].map(x=>x==='meadow'?'normal':x)){
+  for(const tp of ['normal','farm','forest','mountain','vein']){
     if(!cnt[tp]) continue;
-    h+='<div class="st-break"><span class="l">'+TB[tp][0]+' ×'+cnt[tp]+' · ✦'+TB[tp][1]+' each</span><span>✦ '+(cnt[tp]*TB[tp][1])+'/day</span></div>';
+    const th=tileThumb(tp);
+    const pic=th?'<img class="tt" src="'+th+'" alt="">':'';
+    h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp][0]+' ×'+cnt[tp]+' · ✦'+TB[tp][1]+' each</span></span><span>✦ '+(cnt[tp]*TB[tp][1])+'/day</span></div>';
   }
   h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+yld+'</b></span></div>';
   // leder-ordrer med hop-til-kort
