@@ -47,6 +47,8 @@
 - Udbytte kræver 24 timers uafbrudt ejerskab (dræber felt-flipping).
 - Alt terræn-artwork foreligger (hex-tiles, pointy-top efter 90°-rotation).
 
+
+**Sø (vand):** uovervindeligt felt — figurer og ruter kan hverken krydse eller erobre det, og det kan aldrig ejes. Spredes på kortet med reglen at to søer aldrig ligger op ad hinanden; borge placeres aldrig på vand.
 ## 4. Bevægelse og marcher
 
 - Bevægelsespoint regenererer over tid (1 pr. 4 t, cap 6); infrastruktur-
