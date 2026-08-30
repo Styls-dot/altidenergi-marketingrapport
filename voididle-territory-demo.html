@@ -450,6 +450,7 @@ const CFG = {
   FORT_WORK: 6,  FORT_STONE: 5, FORT_WOOD: 3, // fort: koster 5 sten + 3 træ
   SAW_COST: 5,   SAW_WORK: 5,     // savværk: +1 træ pr. døgn
   MINE_COST: 5,  MINE_WORK: 5,    // mine: +1 sten pr. døgn
+  GRAN_WOOD: 4,  GRAN_WORK: 5,     // granary (kun mark): fordobler feltets point
   FORT_MULT: 1.75,
   TICK_MS: 500,
   MARCH_MS: 5000,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
@@ -580,7 +581,7 @@ const F=(q,r)=>fields.get(key(q,r));
 
 /* ============ Gem/indlæs — demoen overlever genindlæsning (idle!) ============ */
 const SAVE_KEY='voididle-territory-demo-v3'; // v3: marker + vein/mark-artwork på kortet
-const yieldOf=f=>f.type==='vein'?3:f.type==='farm'?2:1; // dagligt ✦-udbytte pr. felt
+const yieldOf=f=>(f.type==='vein'?3:f.type==='farm'?2:1)*(f.granary?2:1); // dagligt ✦-udbytte (granary fordobler)
 function saveGame(){
   if(phase!=='play') return;
   try{
@@ -593,7 +594,7 @@ function saveGame(){
       fields:[...fields.values()]
         .filter(f=>f.owner!==null||f.tower||f.fort||f.siege||f.building||f.protectedUntil>Date.now())
         .map(f=>({q:f.q,r:f.r,owner:f.owner,ownedSince:f.ownedSince,
-                  protectedUntil:f.protectedUntil,tower:f.tower,fort:f.fort,sawmill:f.sawmill,mine:f.mine,siege:f.siege,building:f.building})),
+                  protectedUntil:f.protectedUntil,tower:f.tower,fort:f.fort,sawmill:f.sawmill,mine:f.mine,granary:f.granary,siege:f.siege,building:f.building})),
     }));
   }catch(e){}
 }
@@ -607,7 +608,7 @@ function loadGame(){
     for(const sf of s.fields||[]){
       const f=F(sf.q,sf.r); if(!f) continue;
       f.owner=sf.owner; f.ownedSince=sf.ownedSince; f.protectedUntil=sf.protectedUntil;
-      f.tower=sf.tower; f.fort=sf.fort||false; f.sawmill=sf.sawmill||false; f.mine=sf.mine||false; f.siege=sf.siege; f.building=sf.building||null;
+      f.tower=sf.tower; f.fort=sf.fort||false; f.sawmill=sf.sawmill||false; f.mine=sf.mine||false; f.granary=sf.granary||false; f.siege=sf.siege; f.building=sf.building||null;
       // konvertér gamle enkelt-angriber-belejringer til kapløbs-formatet
       const sg=f.siege;
       if(sg&&sg.att!==undefined&&!sg.atts){
@@ -832,15 +833,18 @@ function effPower(u,f){
 const BUILDINGS={
   tower:  {name:'Watchtower', icon:'🗼', flag:'tower',   cost:()=>({wood:CFG.TOWER_WOOD}),               work:()=>CFG.TOWER_WORK, fx:'vision +2 around the tile'},
   fort:   {name:'Fort',       icon:'🏰', flag:'fort',    cost:()=>({stone:CFG.FORT_STONE,wood:CFG.FORT_WOOD}), work:()=>CFG.FORT_WORK,  fx:'+75% defense in sieges'},
-  sawmill:{name:'Sawmill',    icon:'🪚', flag:'sawmill', cost:()=>({pts:CFG.SAW_COST}),                   work:()=>CFG.SAW_WORK,   fx:'+1 🪵 wood per day', res:'wood'},
-  mine:   {name:'Mine',       icon:'⛏', flag:'mine',    cost:()=>({pts:CFG.MINE_COST}),                  work:()=>CFG.MINE_WORK,  fx:'+1 🪨 stone per day', res:'stone'},
+  sawmill:{name:'Sawmill',    icon:'🪚', flag:'sawmill', cost:()=>({pts:CFG.SAW_COST}),  work:()=>CFG.SAW_WORK,  fx:'+1 🪵 wood per day', res:'wood', terrain:['forest']},
+  mine:   {name:'Mine',       icon:'⛏', flag:'mine',    cost:()=>({pts:CFG.MINE_COST}), work:()=>CFG.MINE_WORK, fx:'+1 🪨 stone per day', res:'stone', terrain:['mountain']},
+  granary:{name:'Granary',    icon:'🌾', flag:'granary', cost:()=>({wood:CFG.GRAN_WOOD}), work:()=>CFG.GRAN_WORK, fx:'doubles this tile\'s points', terrain:['farm']},
 };
-const BUILD_KINDS=['tower','fort','sawmill','mine'];
+const BUILD_KINDS=['tower','fort','sawmill','mine','granary'];
+const TERR_LABEL={forest:'forest',mountain:'mountain',farm:'farm'};
+function canBuildOn(kind,f){ const B=BUILDINGS[kind]; return !B.terrain||B.terrain.includes(f.type); }
 const RES_ICON={pts:'✦',wood:'🪵',stone:'🪨'};
 function costText(c){ return Object.keys(c).map(k=>c[k]+' '+RES_ICON[k]).join(' · '); }
 function canAfford(g,c){ return Object.keys(c).every(k=>(k==='pts'?g.pts:(g[k]||0))>=c[k]); }
 function payCost(g,c){ for(const k in c){ if(k==='pts') g.pts-=c[k]; else g[k]=(g[k]||0)-c[k]; } }
-function hasBuilding(f){ return f.tower||f.fort||f.sawmill||f.mine; }
+function hasBuilding(f){ return f.tower||f.fort||f.sawmill||f.mine||f.granary; }
 // ALLE bygninger opføres KUN med craft-power (🔨). Andre magt-typer tæller ikke.
 function buildPower(u){ return u.kp||0; }
 function attTarget(f,gid){
@@ -1290,15 +1294,16 @@ function renderGuildInfo(){
       +'<button class="gi-jump" onclick="jumpTo('+r0[0]+','+r0[1]+')">Show</button></div>';
   }
   // sæson: udbytte pr. felttype + samlet payout ved sæsonslut
-  const TB={normal:['Meadow',1],farm:['Farm',2],forest:['Forest',1],mountain:['Mountain',1],vein:['Gold Vein',3]};
-  const cnt={normal:0,farm:0,forest:0,mountain:0,vein:0};
-  for(const f of fields.values()) if(f.owner===me.id) cnt[f.type]=(cnt[f.type]||0)+1;
+  const TB={normal:'Meadow',farm:'Farm',forest:'Forest',mountain:'Mountain',vein:'Gold Vein'};
+  const cnt={normal:0,farm:0,forest:0,mountain:0,vein:0}, sumY={normal:0,farm:0,forest:0,mountain:0,vein:0}, gran={};
+  for(const f of fields.values()) if(f.owner===me.id){ cnt[f.type]=(cnt[f.type]||0)+1; sumY[f.type]=(sumY[f.type]||0)+yieldOf(f); if(f.granary) gran[f.type]=(gran[f.type]||0)+1; }
   h+='<div class="gi-sec">Season · '+seasonLeft+' day(s) left</div>';
   for(const tp of ['normal','farm','forest','mountain','vein']){
     if(!cnt[tp]) continue;
     const th=tileThumb(tp);
     const pic=th?'<img class="tt" src="'+th+'" alt="">':'';
-    h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp][0]+' ×'+cnt[tp]+' · ✦'+TB[tp][1]+' each</span></span><span>✦ '+(cnt[tp]*TB[tp][1])+'/day</span></div>';
+    const extra=gran[tp]?' <span style="color:var(--gold)">· '+gran[tp]+'× 🌾</span>':'';
+    h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp]+' ×'+cnt[tp]+extra+'</span></span><span>✦ '+sumY[tp]+'/day</span></div>';
   }
   h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+yld+'</b></span></div>';
   // ressourcer: træ + sten fra savværk/mine
@@ -1312,7 +1317,8 @@ function renderGuildInfo(){
   const SRCMAP={tower:WTOWER_SRC,fort:FORT_SRC};
   h+=BUILD_KINDS.map(bk=>{ const B=BUILDINGS[bk];
     const pic=SRCMAP[bk]?'<img class="bt" src="'+SRCMAP[bk]+'" alt="">':'<span class="be">'+B.icon+'</span>';
-    return '<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+B.name+' · '+B.fx+' <span style="opacity:.7">('+costText(B.cost())+')</span></span></span><span>×'+(cntB[bk]||0)+'</span></div>';
+    const terr=B.terrain?' · '+TERR_LABEL[B.terrain[0]]+' only':'';
+    return '<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+B.name+' · '+B.fx+terr+' <span style="opacity:.7">('+costText(B.cost())+')</span></span></span><span>×'+(cntB[bk]||0)+'</span></div>';
   }).join('');
   if(building) h+='<div class="st-break"><span class="l">🔨 Under construction</span><span>×'+building+'</span></div>';
   // leder-ordrer med hop-til-kort
@@ -1587,7 +1593,7 @@ function handleTap(sx,sy){
   const k=key(c.q,c.r);
   if(towerMode){
     const B=BUILDINGS[towerMode];
-    if(B&&f.owner===me.id&&!hasBuilding(f)&&!f.building&&canAfford(me,B.cost())){
+    if(B&&f.owner===me.id&&!hasBuilding(f)&&!f.building&&canBuildOn(towerMode,f)&&canAfford(me,B.cost())){
       payCost(me,B.cost());
       f.building={kind:towerMode,progress:0,target:B.work()};
       log('🔨 Construction of '+B.name.toLowerCase()+' started at ('+f.q+','+f.r+')');
@@ -1792,6 +1798,7 @@ function describeField(f){
     if(visSet.has(k)&&f.tower) dfnParts.push('🗼 watchtower — vision +2');
     if(visSet.has(k)&&f.sawmill) dfnParts.push('🪚 sawmill — +1 🪵/day');
     if(visSet.has(k)&&f.mine) dfnParts.push('⛏ mine — +1 🪨/day');
+    if(visSet.has(k)&&f.granary) dfnParts.push('🌾 granary — double points');
     if(visSet.has(k)&&f.building){
       const B=BUILDINGS[f.building.kind];
       dfnParts.push('🔨 '+(B?B.name.toLowerCase():'construction')+' '+Math.round(f.building.progress/f.building.target*100)+'% built');
@@ -1847,7 +1854,7 @@ function describeField(f){
     else if(f.owner===me.id) acts.push({label:'🛡 Defense flag',fn:'setFlag('+f.q+','+f.r+',\'def\')'});
     else if(!isBorgF) acts.push({label:'⚔ Attack flag',fn:'setFlag('+f.q+','+f.r+',\'att\')'});
     if(f.owner===me.id&&!hasBuilding(f)&&!f.building&&!isBorgF){
-      for(const bk of BUILD_KINDS){ const B=BUILDINGS[bk];
+      for(const bk of BUILD_KINDS){ const B=BUILDINGS[bk]; if(!canBuildOn(bk,f)) continue;
         acts.push({label:'Build '+B.icon+' '+costText(B.cost()),fn:'orderBuild('+f.q+','+f.r+',\''+bk+'\')'}); }
     }
   }
@@ -1939,6 +1946,7 @@ function removeFlag(q,r){
 function orderBuild(q,r,kind){
   const me=guilds.find(g=>g.player), f=F(q,r), B=BUILDINGS[kind];
   if(!f||!B||f.owner!==me.id||hasBuilding(f)||f.building){ toast('Cannot build here'); return; }
+  if(!canBuildOn(kind,f)){ toast(B.name+' can only be built on '+TERR_LABEL[B.terrain[0]]+' tiles'); return; }
   const c=B.cost();
   if(!canAfford(me,c)){ toast('Not enough — '+B.name+' costs '+costText(c)); return; }
   payCost(me,c);
