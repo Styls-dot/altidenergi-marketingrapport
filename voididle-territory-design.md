@@ -148,6 +148,10 @@ Pr. deltagende hold, sorteret efter føring:
   slut tæller ikke; kørende belejringer annulleres.
 - Slutspurten om guldårerne er sæsonens naturlige klimaks.
 
+
+**Sæson-opgraderinger (demo, koblet til reel matematik):** Swift Boots (+25% bevægelses-regen/niv), Supply Lines (+1 max bevægelse/niv), Vanguard (+20% belejrings-angreb/niv), Garrison (+50% passivt forsvar/niv), Watchmen (+1 syn på egne felter og borg/niv). Bygninger (🗼/🏰) placeres direkte på felter.
+
+**Realm Standings (leaderboard):** guild-tabben viser holdene rangeret efter antal ejede felter (tie-break: dagligt ✦-udbytte) med banner, sigil, søjle og ✦/dag; live-opdateret.
 ## 11. Spawn ("ankerpunkt i konfliktbåndet") og borgen
 
 - Server finder anker: 8-14 felter fra nærmeste borg, ≥ ~70 % neutralt

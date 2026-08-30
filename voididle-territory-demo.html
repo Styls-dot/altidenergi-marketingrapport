@@ -246,6 +246,19 @@
   .hud .brand{flex-shrink:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .hdim{font-size:10px; color:var(--muted); opacity:.85}
   .hdim b{color:var(--gold); font-variant-numeric:tabular-nums}
+  #standings{margin-bottom:14px}
+  .lb-row{display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:8px;
+    margin-bottom:4px; background:rgba(20,28,22,0.5); border:1px solid rgba(74,62,32,0.4)}
+  .lb-row.me{border-color:#8A6B2F; background:rgba(217,164,74,0.10)}
+  .lb-rank{width:16px; text-align:center; color:var(--muted); font-weight:600; font-size:12px}
+  .lb-ban{width:15px; height:22px; object-fit:contain; flex-shrink:0}
+  .lb-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:12.5px; display:flex; align-items:center; gap:5px}
+  .lb-name img{height:13px; vertical-align:-2px}
+  .lb-bar{flex:1.2; height:7px; border-radius:4px; background:rgba(255,255,255,0.08); overflow:hidden}
+  .lb-bar i{display:block; height:100%; border-radius:4px}
+  .lb-tiles{font-variant-numeric:tabular-nums; font-weight:700; font-size:12.5px; color:var(--text); min-width:34px; text-align:right}
+  .lb-yield{font-size:10px; color:var(--muted); min-width:40px; text-align:right}
   .foot{pointer-events:none}
   .foot>*{pointer-events:none}
   .foot .abtn{pointer-events:auto}
@@ -282,6 +295,7 @@
 </div>
 
 <div class="panel" id="pUpg">
+  <div id="standings"></div>
   <h2>Season Tree</h2>
   <p class="sub">Bought with season points ✦ (1 per tile per day, farms give 2, gold veins 3). Resets at season end.</p>
   <div id="upgList"></div>
@@ -456,7 +470,7 @@ const avatarImg=new Image(); avatarImg.src=AVATAR_SRC;
 let towerMode=false, bannerMode=false;
 let party=null; // {leader:unitId, members:[unitIds]} — lederen flytter hele gruppen
 let flags=[];   // leder-ordrer: {q,r,type:'att'|'def'} — synlige for hele holdet
-const upgrades={boots:0, garrison:0, tower:true};
+const upgrades={boots:0, garrison:0, supply:0, vanguard:0, watch:0, tower:true};
 const logs=[];
 
 function makeMap(){
@@ -547,7 +561,7 @@ function loadGame(){
       if(!u.gp) u.gp=u.lp||80+Math.floor(Math.random()*81);
       if(!u.kp) u.kp=80+Math.floor(Math.random()*81);
       if(!u.lastRegen||!isFinite(u.lastRegen)) u.lastRegen=Date.now();
-      if(!(u.mp>=0&&u.mp<=CFG.MP_MAX)) u.mp=CFG.MP_START;
+      if(!(u.mp>=0)) u.mp=CFG.MP_START; if(u.mp>mpMax()) u.mp=mpMax();
     });
     Object.assign(upgrades,s.upgrades||{});
     logs.length=0; logs.push(...(s.logs||[])); unread=s.unread||0;
@@ -660,9 +674,9 @@ function computeVision(){
   const add=(c,rad)=>{ for(const h of disc(c,rad)){ if(fields.has(key(h.q,h.r))) visSet.add(key(h.q,h.r)); } };
   const me=guilds.find(g=>g.player); if(!me) return;
   for(const f of fields.values()){
-    if(f.owner===me.id){ add(f,CFG.VISION_FIELD); if(f.tower) add(f,CFG.VISION_TOWER); }
+    if(f.owner===me.id){ add(f,CFG.VISION_FIELD+visBonus()); if(f.tower) add(f,CFG.VISION_TOWER); }
   }
-  add(me.borg,CFG.VISION_BORG);
+  add(me.borg,CFG.VISION_BORG+visBonus());
   for(const u of units) if(u.g===me.id) add(u,CFG.VISION_UNIT);
   for(const k of visSet){
     const f=fields.get(k);
@@ -686,6 +700,8 @@ function toast(msg){
 
 /* ================= Belejringer ================= */
 function fieldsOwned(gid){ let n=0; for(const f of fields.values()) if(f.owner===gid)n++; return n; }
+function mpMax(){ return CFG.MP_MAX+(upgrades.supply||0); }        // Supply Lines
+function visBonus(){ return (upgrades.watch||0); }                 // Watchmen: +syn paa egne felter/borg
 // Tre magt-typer: ⚔ combat (eng/mark), 🪓 gather (skov/bjerg), 🔨 craft (guldårer + byggeri).
 // Andre magt-typer kan altid bruges med 20% styrke — spillet vælger det bedste pr. kriger.
 function effPower(u,f){
@@ -769,7 +785,8 @@ function tickSieges(){
     for(const gid in s.atts){
       const list=topUnits(+gid);
       totalAtt+=list.length;
-      const mult=(bannerHere&&+gid===meId)?CFG.BANNER_MULT:1;
+      let mult=(bannerHere&&+gid===meId)?CFG.BANNER_MULT:1;
+      if(+gid===meId) mult*=(1+(upgrades.vanguard||0)*0.2); // Vanguard
       let add=0;
       for(const u of list){
         const c=effPower(u,f).p/100*CFG.FILL_PER_UNIT*mult*rate; // felttypen afgør magt-typen
@@ -856,7 +873,7 @@ function tickRegen(){
   const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
   for(const u of units){
     if(!u.lastRegen||!isFinite(now-u.lastRegen)) u.lastRegen=now;
-    while(now-u.lastRegen>=regen){ u.lastRegen+=regen; if(u.mp<CFG.MP_MAX)u.mp++; }
+    while(now-u.lastRegen>=regen){ u.lastRegen+=regen; if(u.mp<mpMax())u.mp++; }
   }
 }
 
@@ -997,18 +1014,48 @@ function endSeason(){
 
 /* ================= Opgraderinger ================= */
 const UPG=[
-  {id:'boots', name:'Swift Boots', desc:'+25% faster movement regen per level', cost:()=>5+upgrades.boots*3, max:3, lvl:()=>upgrades.boots,
+  {id:'boots', name:'Swift Boots', icon:'🥾', desc:'+25% faster movement regen per level', cost:()=>5+upgrades.boots*3, max:3, lvl:()=>upgrades.boots,
    buy(){upgrades.boots++;}},
-  {id:'garrison', name:'Garrison', desc:'+50% passive defense in sieges per level', cost:()=>6+upgrades.garrison*3, max:3, lvl:()=>upgrades.garrison,
+  {id:'supply', name:'Supply Lines', icon:'📦', desc:'+1 max movement per level', cost:()=>6+upgrades.supply*4, max:3, lvl:()=>upgrades.supply,
+   buy(){upgrades.supply++;}},
+  {id:'vanguard', name:'Vanguard', icon:'⚔', desc:'+20% siege attack speed per level', cost:()=>7+upgrades.vanguard*4, max:3, lvl:()=>upgrades.vanguard,
+   buy(){upgrades.vanguard++;}},
+  {id:'garrison', name:'Garrison', icon:'🛡', desc:'+50% passive defense in sieges per level', cost:()=>6+upgrades.garrison*3, max:3, lvl:()=>upgrades.garrison,
    buy(){upgrades.garrison++;}},
+  {id:'watch', name:'Watchmen', icon:'👁', desc:'+1 vision on your tiles and stronghold per level', cost:()=>8+upgrades.watch*5, max:2, lvl:()=>upgrades.watch,
+   buy(){upgrades.watch++; computeVision();}},
 ];
 // Bygninger placeres nu direkte: tap et eget felt → "Byg 🗼/🏰" i handlingsbjælken.
+function renderStandings(){
+  const el=document.getElementById('standings'); if(!el) return;
+  const me=guilds.find(g=>g.player);
+  const rows=guilds.map(g=>{
+    let tiles=0,yld=0;
+    for(const f of fields.values()) if(f.owner===g.id){ tiles++; yld+=yieldOf(f); }
+    return {g,tiles,yld};
+  }).sort((a,b)=>b.tiles-a.tiles||b.yld-a.yld);
+  const max=Math.max(1,rows[0].tiles);
+  const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+  el.innerHTML='<h2>Realm Standings</h2>'
+    +'<p class="sub">Tiles held by each guild this season</p>'
+    +rows.map((r,i)=>{
+      const idx=bannerIdx(r.g.color);
+      return '<div class="lb-row'+(r.g.player?' me':'')+'">'
+        +'<span class="lb-rank">'+medal(i)+'</span>'
+        +'<img class="lb-ban" src="'+BANNERS_B64[idx]+'" alt="">'
+        +'<span class="lb-name">'+(r.g.sigil?sigilTag(r.g.sigil,13)+' ':'')+r.g.name+'</span>'
+        +'<span class="lb-bar"><i style="width:'+Math.round(r.tiles/max*100)+'%;background:'+r.g.color+'"></i></span>'
+        +'<span class="lb-tiles">'+r.tiles+'</span>'
+        +'<span class="lb-yield">✦'+r.yld+'/d</span>'
+        +'</div>';
+    }).join('');
+}
 function renderUpg(){
   const me=guilds.find(g=>g.player);
   document.getElementById('upgList').innerHTML=UPG.map(u=>{
     const maxed=typeof u.lvl()==='number'&&u.lvl()>=u.max;
     const can=me.pts>=u.cost()&&!maxed;
-    return '<div class="row"><div class="t"><b>'+u.name+(typeof u.lvl()==='number'?' · niv. '+u.lvl():'')+'</b><span>'+u.desc+'</span></div>'+
+    return '<div class="row"><div class="t"><b>'+(u.icon?u.icon+' ':'')+u.name+(typeof u.lvl()==='number'?' · Lv '+u.lvl()+'/'+u.max:'')+'</b><span>'+u.desc+'</span></div>'+
       '<button class="abtn'+(can?' gold':'')+'" '+(can?'':'disabled style="opacity:.4"')+' onclick="buyUpg(\''+u.id+'\')">'+
       (maxed?'Max':u.cost()+' ✦')+'</button></div>';
   }).join('');
@@ -1314,9 +1361,9 @@ function updateSelCard(){
   document.getElementById('scGp').textContent=selUnit.gp||100;
   document.getElementById('scKp').textContent=selUnit.kp||100;
   document.getElementById('scMp').innerHTML=selUnit.marching?'🥾 on the march…'
-    :'🥾 Movement <b>'+selUnit.mp+'/'+CFG.MP_MAX+'</b> '
-     +'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,CFG.MP_MAX-selUnit.mp))
-     +(selUnit.mp<CFG.MP_MAX?' · +1 in '+fmtMMSS(mpEtaSec(selUnit)):' · full');
+    :'🥾 Movement <b>'+selUnit.mp+'/'+mpMax()+'</b> '
+     +'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,mpMax()-selUnit.mp))
+     +(selUnit.mp<mpMax()?' · +1 in '+fmtMMSS(mpEtaSec(selUnit)):' · full');
 }
 let uiFocus='unit'; // 'unit' = figur-info i bunden, 'field' = felt-info/-handlinger
 function computeReach(u){
@@ -1346,7 +1393,7 @@ function select(u){
   computeReach(u);
   const inParty=party&&party.members.includes(u.id);
   const isLead=party&&u.id===party.leader;
-  setCtx('<b>'+(u.name||'Warrior')+'</b> · '+u.mp+'/'+CFG.MP_MAX+' movement'
+  setCtx('<b>'+(u.name||'Warrior')+'</b> · '+u.mp+'/'+mpMax()+' movement'
     +(isLead?' · 👥 party leader':inParty?' · 👥 in party':'')+' · tap a tile for info — tap again to move');
   const acts=[{label:'🚩 Plant banner',fn:'armBanner()',gold:true}];
   if(isLead) acts.push({label:'👥 Disband party',fn:'disbandParty()'});
@@ -2010,7 +2057,7 @@ function startGame(c){
 
 /* ================= Paneler ================= */
 document.getElementById('bUpg').addEventListener('click',()=>{
-  closePanels(); renderUpg(); renderBannerEditor();
+  closePanels(); renderStandings(); renderUpg(); renderBannerEditor();
   document.getElementById('pUpg').classList.add('open');
 });
 document.getElementById('bLog').addEventListener('click',()=>{
@@ -2036,6 +2083,7 @@ setInterval(()=>{
       if(tilePopAt){ const tf=F(tilePopAt.q,tilePopAt.r); if(tf) describeField(tf); } }
   }
   if(siegeView) renderSiegePanel();
+  if(document.getElementById('pUpg').classList.contains('open')) renderStandings();
 },CFG.TICK_MS);
 setInterval(()=>{ if(phase==='play') tickAI(); },2000);
 requestAnimationFrame(draw);
