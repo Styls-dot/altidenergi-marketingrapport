@@ -142,10 +142,23 @@ Pr. deltagende hold, sorteret efter føring:
 **Bygningstyper (demo):** 🗼 Vagttårn (syn +2, alle felter), 🏰 Fort (+75% forsvar, alle felter), 🪚 Savværk (+1 træ/døgn, kun skov), ⛏ Mine (+1 sten/døgn, kun bjerg) og 🌾 Granary (fordobler feltets point, kun mark). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. **Ressource-økonomi:** savværk/mine koster ✦ (bootstrap) og producerer træ/sten i guildens lager; vagttårn koster 4 🪵 træ og fort koster 5 🪨 sten + 3 🪵 træ. Så point → savværk/mine → træ/sten → tårn/fort.
 ## 9. Grupper (party) på kortet
 
-- Spillere kan joine et **pt**; **pt-lederen flytter hele gruppen** med ét
-  tryk. Krav: alle medlemmer står samlet og har bevægelse klar.
-- Splittes gruppen (fx tvungen retræte), må den samles igen før fælles march.
-- Medlemmer markeres visuelt (ring); leder/medlem vises i statuslinjen.
+- **Invitation:** står flere allierede på samme felt, ser man dem i felt-infoen
+  med hver deres ⚔/🪓/🔨-magt og en **Invitér**-knap. Den, der inviterer, bliver
+  **gruppeleder**.
+- **Accept/afvis:** den inviterede spiller vælger selv at **acceptere eller afvise**.
+  Ved accept begynder han automatisk at **gå mod lederen** — og følger lederens
+  aktuelle position, hvis lederen har flyttet sig siden (fugleflugt over eget +
+  neutralt land, uden om fjendtligt område).
+  *(I singleplayer-demoen svarer de allierede selv efter et øjeblik; i det rigtige
+  multiplayer-spil trykker hver spiller Accept/Decline.)*
+- **Størrelse:** op til **5** i en gruppe.
+- **Samlet magt:** gruppen har en **samlet combat-, gather- og craft-power** lagt
+  sammen fra medlemmerne.
+- **Party-knap/-panel:** egen knap i toppen (med medlemsantal-badge) åbner et panel
+  med hele gruppen, deres roller, positioner og de samlede stats — plus opløs-gruppe,
+  jump-til-medlem og fjern-medlem.
+- Medlemmer markeres visuelt (ring; leder får krone), og leder/medlem vises i
+  statuslinjen. Lederen marcherer frit; resten følger efter af sig selv.
 
 ## 10. Point, opgraderinger og sæsoner
 

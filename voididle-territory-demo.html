@@ -101,6 +101,11 @@
   .tp-pow.main b{color:var(--gold)}
   .tp-acts{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
   .tp-acts .abtn{padding:7px 10px; font-size:12px}
+  .tp-sec{margin:7px 0 3px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); opacity:.85; border-top:1px solid rgba(74,62,32,.5); padding-top:6px}
+  .tp-ally{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0; font-size:11.5px}
+  .tp-ally-n{overflow:hidden; text-overflow:ellipsis}
+  .tp-inv{background:linear-gradient(180deg,#C9A24A,#8A6B2F); border:none; color:#1a130a; font:700 11px Poppins,sans-serif; border-radius:6px; padding:5px 11px; cursor:pointer; flex-shrink:0}
+  .tp-tag{font-size:10.5px; color:var(--gold); opacity:.85; flex-shrink:0}
   #ctx{
     font-size:12.5px; color:var(--muted); min-height:17px;
     margin:0 auto; text-align:center;
@@ -324,6 +329,7 @@
   <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
   <div class="stat" title="Season time left">🗓 <b id="hSeason">–</b></div>
   <div class="spacer"></div>
+  <button class="hbtn" id="bParty">👥 Party<span class="badge" id="partyBadge" style="display:none">0</span></button>
   <button class="hbtn" id="bGuild">⚔ Guild</button>
   <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
 </div>
@@ -367,6 +373,12 @@
   <div id="gtNews" class="gtc" hidden></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Close</button>
   <button class="abtn" style="width:100%;margin-top:8px;color:var(--cinnabar)" onclick="resetDemo()">Reset the demo (start over)</button>
+</div>
+
+<div class="panel" id="pParty">
+  <h2>Party</h2>
+  <div id="ptBody"></div>
+  <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Close</button>
 </div>
 
 <div class="panel" id="pSiege">
@@ -1448,6 +1460,7 @@ function closePanels(){
   document.getElementById('pUpg').classList.remove('open');
   document.getElementById('pLog').classList.remove('open');
   document.getElementById('pSiege').classList.remove('open');
+  document.getElementById('pParty').classList.remove('open');
   siegeView=null;
 }
 
@@ -1542,6 +1555,8 @@ function updateHud(){
   b.style.display=unread>0?'block':'none'; b.textContent=unread;
   const nb=document.getElementById('newsBadge');
   if(nb){ nb.style.display=unread>0?'block':'none'; nb.textContent=unread; }
+  const pb=document.getElementById('partyBadge');
+  if(pb){ const n=party?partyStats().count:0; pb.style.display=n>0?'block':'none'; pb.textContent=n; }
 }
 function setCtx(html){ document.getElementById('ctx').innerHTML=html; }
 function setActions(btns){
@@ -1652,7 +1667,6 @@ function handleTap(sx,sy){
     const armed=uiFocus==='field'&&selField&&selField.q===c.q&&selField.r===c.r;
     if(!armed){ selField=f; describeField(f); return; }
     const kind=reach.get(k);
-    if(party&&selUnit.id===party.leader){ partyMove(c.q,c.r); select(selUnit); return; }
     if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Capture under way…':'Mobilizing — the fight starts shortly'); }
     else toast(selUnit.mp<1?'No movement yet — it regenerates over time':'Cannot move there right now');
     select(selUnit); return;
@@ -1670,34 +1684,145 @@ function handleTap(sx,sy){
   // tryk uden for rækkevidde: vis feltinfo + leder-handlinger, behold valget
   selField=f; describeField(f);
 }
-/* ================= Grupper (party): lederen flytter alle ================= */
-function formParty(){
+/* ================= Party: invite → accept → followers trail the leader =========
+   Flow the player asked for: when several allies stand on one tile you invite them
+   from the tile info; each invited player accepts or declines; on accept they start
+   walking to the inviter (the leader) and keep re-routing if the leader moves on.
+   Up to 5 to a party, and the party's combined combat/gather/craft power is shown.
+   In this single-player demo the invited allies answer on their own after a beat —
+   in the live multiplayer game each real player taps Accept or Decline.            */
+const MAX_PARTY=5, INVITE_MS=1600;
+let partyInvites=[]; // [{uid, at}] pending invites (demo auto-resolves them)
+function partyLeaderUnit(){ return party?units.find(u=>u.id===party.leader):null; }
+function partyMemberUnits(){ return party?party.members.map(id=>units.find(u=>u.id===id)).filter(Boolean):[]; }
+function inParty(u){ return !!(party&&u&&party.members.includes(u.id)); }
+function isLeaderU(u){ return !!(party&&u&&u.id===party.leader); }
+function partyStats(){ let cp=0,gp=0,kp=0; const m=partyMemberUnits(); for(const u of m){cp+=u.cp||0;gp+=u.gp||0;kp+=u.kp||0;} return {cp,gp,kp,count:m.length}; }
+function partySlots(){ return party?party.members.length+partyInvites.length:0; }
+
+function invitePlayer(uid){
   const me=guilds.find(g=>g.player);
-  if(!selUnit) return;
-  const here=unitsOn(F(selUnit.q,selUnit.r),me.id);
-  if(here.length<2){ toast('No one else to gather here'); return; }
-  party={leader:selUnit.id,members:here.map(u=>u.id)};
-  log('👥 Party formed ('+here.length+') — '+(selUnit.name||'the leader')+' leads');
-  toast('Party formed — move the leader and everyone follows');
-  select(selUnit);
+  const target=units.find(u=>u.id===uid);
+  if(!target||target.g!==me.id) return;
+  if(!party){
+    // no party yet: the inviter becomes leader (the selected ally on the tile, else another ally there)
+    let leader=(selUnit&&selUnit.g===me.id&&selUnit.q===target.q&&selUnit.r===target.r&&selUnit.id!==uid)?selUnit:null;
+    if(!leader) leader=unitsOn(F(target.q,target.r),me.id).find(u=>u.id!==uid);
+    if(!leader){ toast('Someone has to stay and lead the party'); return; }
+    party={leader:leader.id,members:[leader.id]};
+    log('👥 '+(leader.name||'A warrior')+' forms a party');
+  }
+  if(party.members.includes(uid)){ toast((target.name||'They')+' is already in the party'); return; }
+  if(partyInvites.some(i=>i.uid===uid)){ toast('Invite already sent'); return; }
+  if(partySlots()>=MAX_PARTY){ toast('Party is full (max '+MAX_PARTY+')'); return; }
+  partyInvites.push({uid,at:Date.now()});
+  toast('Invite sent to '+(target.name||'warrior')+' — awaiting their reply…');
+  if(selUnit&&uiFocus==='field'&&tilePopAt){ const tf=F(tilePopAt.q,tilePopAt.r); if(tf) describeField(tf); }
+  renderParty();
+}
+function acceptInvite(uid){
+  partyInvites=partyInvites.filter(i=>i.uid!==uid);
+  if(!party) return;
+  if(party.members.length>=MAX_PARTY) return;
+  const u=units.find(x=>x.id===uid); if(!u) return;
+  if(!party.members.includes(uid)) party.members.push(uid);
+  log('👥 '+(u.name||'A warrior')+' joined the party');
+  toast((u.name||'Warrior')+' accepted — marching to the leader');
+  renderParty();
+}
+function declineInvite(uid){
+  const u=units.find(x=>x.id===uid);
+  partyInvites=partyInvites.filter(i=>i.uid!==uid);
+  if(u) toast((u.name||'They')+' declined the invite');
+  if(party&&party.members.length<=1&&!partyInvites.length) party=null;
+  renderParty();
+}
+function leaveParty(uid){
+  if(!party) return;
+  if(uid===party.leader){ disbandParty(); return; }
+  const u=units.find(x=>x.id===uid);
+  party.members=party.members.filter(id=>id!==uid);
+  if(u){ u.route=null; toast((u.name||'They')+' left the party'); }
+  if(party.members.length<=1&&!partyInvites.length){ disbandParty(); return; }
+  renderParty();
 }
 function disbandParty(){
-  party=null; toast('The party is disbanded');
-  if(selUnit) select(selUnit);
+  for(const u of partyMemberUnits()) u.route=null;
+  party=null; partyInvites=[];
+  toast('The party disbanded');
+  renderParty(); if(selUnit) select(selUnit);
 }
-function partyMove(q,r){
-  const members=party.members.map(id=>units.find(u=>u.id===id)).filter(Boolean);
-  const lead=units.find(u=>u.id===party.leader);
-  if(!lead){ party=null; return; }
-  if(!members.every(u=>u.q===lead.q&&u.r===lead.r)){
-    toast('The party is scattered — members must stand together'); return;
+// demo: invited allies answer on their own after a short beat
+function resolveInvites(){
+  if(!partyInvites.length) return;
+  const now=Date.now();
+  for(const inv of partyInvites.slice()) if(now-inv.at>=INVITE_MS) acceptInvite(inv.uid);
+}
+// non-leaders trail the leader — re-plot a route to the leader's live tile when they drift
+function tickParty(){
+  if(!party) return;
+  party.members=party.members.filter(id=>units.some(u=>u.id===id));
+  if(!party.members.includes(party.leader)){ disbandParty(); return; }
+  const lead=partyLeaderUnit(); if(!lead){ disbandParty(); return; }
+  if(party.members.length<=1&&!partyInvites.length){ disbandParty(); return; }
+  for(const id of party.members){
+    if(id===party.leader) continue;
+    const u=units.find(x=>x.id===id); if(!u||u.marching) continue;
+    if(u.q===lead.q&&u.r===lead.r){ if(u.route&&!u.route.length) u.route=null; continue; }
+    const dest=u.route&&u.route.length?u.route[u.route.length-1]:null;
+    if(!dest||dest.q!==lead.q||dest.r!==lead.r){
+      const rt=findRoute(u,lead.q,lead.r,false);
+      if(rt&&rt.length) u.route=rt;
+    }
   }
-  if(!members.every(u=>u.mp>=1&&!u.marching)){
-    toast('The whole party needs movement ready'); return;
+}
+function openParty(){ closePanels(); document.getElementById('pParty').classList.add('open'); renderParty(); }
+function renderParty(){
+  const el=document.getElementById('ptBody'); if(!el) return;
+  const open=document.getElementById('pParty').classList.contains('open');
+  if(!open) return;
+  const me=guilds.find(g=>g.player); if(!me) return;
+  if(!party){
+    el.innerHTML='<p class="sub">You are not in a party.</p>'
+      +'<p class="sub">Gather two or more of your warriors on the same tile, tap that tile, and use <b>Invite</b> in the tile info. '
+      +'The one who invites becomes the leader; everyone who accepts marches to them. Up to '+MAX_PARTY+' can band together, '
+      +'and the party pools its combat, gather and craft power.</p>';
+    return;
   }
-  let moved=0;
-  for(const u of members) if(tryMove(u,q,r)) moved++;
-  if(moved>0) toast('👥 The party marches ('+moved+')');
+  const lead=partyLeaderUnit(), s=partyStats();
+  let h='<div class="gi-grid">'
+    +'<div class="gi-cell"><div class="n">'+s.count+'/'+MAX_PARTY+'</div><div class="l">Members</div></div>'
+    +'<div class="gi-cell"><div class="n">⚔ '+s.cp+'</div><div class="l">Combat</div></div>'
+    +'<div class="gi-cell"><div class="n">🪓 '+s.gp+'</div><div class="l">Gather</div></div>'
+    +'<div class="gi-cell"><div class="n">🔨 '+s.kp+'</div><div class="l">Craft</div></div>'
+    +'</div>';
+  h+='<p class="sub" style="margin:6px 0 10px">Combined power of everyone in the party. Members automatically follow the leader'
+    +(lead?' ('+(lead.name||'the leader')+')':'')+' — move the leader and the group trails along.</p>';
+  h+='<div class="gi-sec">Members</div>';
+  for(const u of partyMemberUnits()){
+    const isL=u.id===party.leader;
+    const where=(lead&&u.q===lead.q&&u.r===lead.r)?'with the leader':(u.route&&u.route.length?'marching to the leader':unitPosText(u));
+    h+='<div class="mem-row">'
+      +'<img class="mem-av" src="'+AVATAR_SRC+'" alt="">'
+      +'<div class="mem-main"><b>'+(u.name||'Warrior')+(isL?' 👑':'')+'</b>'
+      +'<span>⚔'+(u.cp||0)+' · 🪓'+(u.gp||0)+' · 🔨'+(u.kp||0)+' · '+where+'</span></div>'
+      +'<button class="gi-jump" onclick="jumpTo('+u.q+','+u.r+')">Jump</button>'
+      +(isL?'':'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="leaveParty('+u.id+')">Remove</button>')
+      +'</div>';
+  }
+  if(partyInvites.length){
+    h+='<div class="gi-sec">Pending invites</div>';
+    for(const inv of partyInvites){ const u=units.find(x=>x.id===inv.uid); if(!u) continue;
+      h+='<div class="mem-row"><img class="mem-av" src="'+AVATAR_SRC+'" alt="">'
+        +'<div class="mem-main"><b>'+(u.name||'Warrior')+'</b><span>⏳ awaiting their reply…</span></div>'
+        +'<button class="gi-jump" onclick="acceptInvite('+u.id+')">Accept</button>'
+        +'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="declineInvite('+u.id+')">Decline</button>'
+        +'</div>';
+    }
+    h+='<p class="sub" style="margin:6px 0 0">In the live multiplayer game each invited player taps Accept or Decline themselves.</p>';
+  }
+  h+='<button class="abtn gold" style="width:100%;margin-top:12px" onclick="disbandParty()">👥 Disband party</button>';
+  el.innerHTML=h;
 }
 
 function confirmPlace(){
@@ -1753,15 +1878,14 @@ function select(u){
     return;
   }
   computeReach(u);
-  const inParty=party&&party.members.includes(u.id);
-  const isLead=party&&u.id===party.leader;
+  const isLead=isLeaderU(u), inP=inParty(u);
   setCtx('<b>'+(u.name||'Warrior')+'</b> · '+u.mp+'/'+mpMax()+' movement'
-    +(isLead?' · 👥 party leader':inParty?' · 👥 in party':'')+' · tap a tile for info — tap again to move');
+    +(isLead?' · 👥 party leader — allies follow you':inP?' · 👥 following the party leader':'')+' · tap a tile for info — tap again to move');
   const acts=[{label:'🚩 Plant banner',fn:'armBanner()',gold:true}];
-  if(isLead) acts.push({label:'👥 Disband party',fn:'disbandParty()'});
-  else if(!party){
+  if(party) acts.push({label:'👥 Party ('+partyStats().count+')',fn:'openParty()',gold:true});
+  else {
     const here=unitsOn(F(u.q,u.r),me.id);
-    if(here.length>1) acts.push({label:'👥 Form party ('+here.length+')',fn:'formParty()',gold:true});
+    if(here.length>1) acts.push({label:'👥 Party — invite allies here',fn:'describeField(F('+u.q+','+u.r+'))',gold:true});
   }
   setActions(acts);
 }
@@ -1896,8 +2020,30 @@ function describeField(f){
         acts.push({label:'Build '+B.icon+' '+costText(B.cost()),fn:'orderBuild('+f.q+','+f.r+',\''+bk+'\')'}); }
     }
   }
+  // party: allies standing on this tile — invite them (they accept/decline; on accept they march to the leader)
+  let ptRows='';
+  if(visSet.has(k)){
+    const here=unitsOn(f,me.id);
+    if(here.length>1||(party&&here.some(u=>inParty(u)))){
+      ptRows+='<div class="tp-sec">👥 Allies on this tile'+(party?' <span class="tp-dim">· party '+partyStats().count+'/'+MAX_PARTY+'</span>':'')+'</div>';
+      // who would lead if a party is started here (the selected ally, else the first one)
+      const wouldLead=party?null:((selUnit&&selUnit.g===me.id&&selUnit.q===f.q&&selUnit.r===f.r)?selUnit:here[0]);
+      for(const u of here){
+        const st='<span class="tp-dim">⚔'+(u.cp||0)+' 🪓'+(u.gp||0)+' 🔨'+(u.kp||0)+'</span>';
+        let btn;
+        if(inParty(u)) btn=isLeaderU(u)?'<span class="tp-tag">👑 leader</span>':'<span class="tp-tag">in party</span>';
+        else if(partyInvites.some(i=>i.uid===u.id)) btn='<span class="tp-tag">⏳ awaiting</span>';
+        else if(wouldLead&&u.id===wouldLead.id) btn='<span class="tp-tag">👑 leads</span>';
+        else if(partySlots()>=MAX_PARTY) btn='<span class="tp-dim">party full</span>';
+        else btn='<button class="tp-inv" onclick="invitePlayer('+u.id+')">Invite</button>';
+        ptRows+='<div class="tp-ally"><span class="tp-ally-n">'+(u.name||'Warrior')+' '+st+'</span>'+btn+'</div>';
+      }
+      if(party) ptRows+='<div class="tp-row tp-dim">Combined ⚔'+partyStats().cp+' · 🪓'+partyStats().gp+' · 🔨'+partyStats().kp+' — <a href="#" onclick="openParty();return false" style="color:var(--gold)">open party panel</a></div>';
+      else ptRows+='<div class="tp-row tp-dim">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
+    }
+  }
   el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b><span class="tp-owner">'+who+'</span></div>'
-    +rows+noteRow
+    +rows+noteRow+ptRows
     +(acts.length?'<div class="tp-acts">'+acts.map(b=>'<button class="abtn'+(b.gold?' gold':'')+'" onclick="'+b.fn+'">'+b.label+'</button>').join('')+'</div>':'');
   el.hidden=false;
   updateTilePop();
@@ -1940,7 +2086,6 @@ function marchSecs(route){
 }
 function routeTo(q,r,attack){
   const u=selUnit; if(!u||u.marching) return;
-  if(party&&u.id===party.leader&&dist(u,{q,r})===1){ partyMove(q,r); return; }
   const route=findRoute(u,q,r,attack);
   if(!route){ toast('No route — another guild\'s land blocks the way'); return; }
   u.route=route;
@@ -1956,17 +2101,10 @@ function tickRoutes(){
     if(u.mp<1) continue; // vent på regen — ruten fortsætter selv
     const next=u.route[0];
     if(dist(u,next)!==1){ u.route=null; continue; }
-    if(party&&u.id===party.leader){
-      const members=party.members.map(id=>units.find(x=>x.id===id)).filter(Boolean);
-      if(!members.every(m=>m.q===u.q&&m.r===u.r&&m.mp>=1&&!m.marching)) continue;
-      const thr=u.route.length>1;
-      let ok=false; for(const m of members) if(tryMove(m,next.q,next.r,thr)) ok=true;
-      if(ok) u.route.shift(); else u.route=null;
-    } else {
-      if(tryMove(u,next.q,next.r,u.route.length>1)) u.route.shift();
-      else u.route=null; // blokeret (beskyttelse, borg mv.)
-    }
-    if(u.route&&!u.route.length){ u.route=null; if(u===selUnit) toast('Arrived ✓'); }
+    // leader marches like any unit; party members trail via tickParty's follow routes
+    if(tryMove(u,next.q,next.r,u.route.length>1)) u.route.shift();
+    else u.route=null; // blokeret (beskyttelse, borg mv.)
+    if(u.route&&!u.route.length){ u.route=null; if(u===selUnit&&!inParty(u)) toast('Arrived ✓'); }
   }
 }
 
@@ -2330,9 +2468,12 @@ function draw(){
       const ay=y+HEX*0.15;
       ctx2.save();
       ctx2.translate(x,ay); ctx2.scale(as,as); ctx2.translate(-x,-ay);
-      if(party&&party.members.includes(u.id)&&guilds[u.g].player&&u.id!==party.leader){
+      if(party&&party.members.includes(u.id)&&guilds[u.g].player){
+        const isL=u.id===party.leader;
         ctx2.beginPath(); ctx2.ellipse(x,ay+5,6.5,2.6,0,0,7);
-        ctx2.strokeStyle='rgba(217,164,74,0.65)'; ctx2.lineWidth=1.2; ctx2.stroke();
+        ctx2.strokeStyle=isL?'rgba(217,164,74,0.95)':'rgba(217,164,74,0.6)';
+        ctx2.lineWidth=isL?2:1.2; ctx2.stroke();
+        if(isL){ ctx2.font='6px serif'; ctx2.textAlign='center'; ctx2.textBaseline='alphabetic'; ctx2.fillStyle='#F2D48A'; ctx2.fillText('👑',x,ay-19); }
       }
       // figuren bærer sit guild-banner, så man kan se hvem der er hvor
       {
@@ -2475,6 +2616,7 @@ function startGame(c){
 }
 
 /* ================= Paneler ================= */
+document.getElementById('bParty').addEventListener('click',openParty);
 document.getElementById('bGuild').addEventListener('click',()=>{
   closePanels();
   document.getElementById('pUpg').classList.add('open');
@@ -2493,7 +2635,7 @@ setInterval(saveGame,5000);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveGame(); });
 setInterval(()=>{
   if(phase!=='play') return;
-  tickRegen(); tickMarches(); tickRoutes(); tickSieges(); tickBuilds(); tickDay();
+  tickRegen(); tickMarches(); resolveInvites(); tickParty(); tickRoutes(); tickSieges(); tickBuilds(); tickDay();
   computeVision(); updateHud();
   if(selUnit){
     if(uiFocus==='unit') select(selUnit);
@@ -2501,6 +2643,7 @@ setInterval(()=>{
       if(tilePopAt){ const tf=F(tilePopAt.q,tilePopAt.r); if(tf) describeField(tf); } }
   }
   if(siegeView) renderSiegePanel();
+  if(document.getElementById('pParty').classList.contains('open')) renderParty();
   if(document.getElementById('pUpg').classList.contains('open')){
     if(guildTabCur==='info') renderGuildInfo();
     else if(guildTabCur==='members') renderMembers();
