@@ -101,11 +101,15 @@
   .tp-pow.main b{color:var(--gold)}
   .tp-acts{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
   .tp-acts .abtn{padding:7px 10px; font-size:12px}
-  .tp-sec{margin:7px 0 3px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); opacity:.85; border-top:1px solid rgba(74,62,32,.5); padding-top:6px}
-  .tp-ally{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0; font-size:11.5px}
-  .tp-ally-n{overflow:hidden; text-overflow:ellipsis}
-  .tp-inv{background:linear-gradient(180deg,#C9A24A,#8A6B2F); border:none; color:#1a130a; font:700 11px Poppins,sans-serif; border-radius:6px; padding:5px 11px; cursor:pointer; flex-shrink:0}
-  .tp-tag{font-size:10.5px; color:var(--gold); opacity:.85; flex-shrink:0}
+  .tp-sec{margin:7px 0 4px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); opacity:.85; border-top:1px solid rgba(74,62,32,.5); padding-top:6px}
+  .tp-allies{display:grid; grid-template-columns:minmax(0,1fr) 2.9em 2.9em 2.9em auto; align-items:center; column-gap:7px; row-gap:2px; margin:2px 0 4px}
+  .tp-allies .h{font-size:9px; letter-spacing:.04em; text-transform:uppercase; opacity:.45; padding-bottom:1px}
+  .tp-allies .h.r{text-align:right}
+  .tp-a-n{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px}
+  .tp-a-s{font-size:11px; text-align:right; font-variant-numeric:tabular-nums; opacity:.85; white-space:nowrap}
+  .tp-a-act{justify-self:end}
+  .tp-inv{background:linear-gradient(180deg,#C9A24A,#8A6B2F); border:none; color:#1a130a; font:700 11px Poppins,sans-serif; border-radius:6px; padding:4px 10px; cursor:pointer; white-space:nowrap}
+  .tp-tag{font-size:10px; color:var(--gold); opacity:.85; white-space:nowrap}
   #ctx{
     font-size:12.5px; color:var(--muted); min-height:17px;
     margin:0 auto; text-align:center;
@@ -2028,16 +2032,20 @@ function describeField(f){
       ptRows+='<div class="tp-sec">👥 Allies on this tile'+(party?' <span class="tp-dim">· party '+partyStats().count+'/'+MAX_PARTY+'</span>':'')+'</div>';
       // who would lead if a party is started here (the selected ally, else the first one)
       const wouldLead=party?null:((selUnit&&selUnit.g===me.id&&selUnit.q===f.q&&selUnit.r===f.r)?selUnit:here[0]);
+      ptRows+='<div class="tp-allies">'
+        +'<span class="h">Ally</span><span class="h r">⚔</span><span class="h r">🪓</span><span class="h r">🔨</span><span class="h"></span>';
       for(const u of here){
-        const st='<span class="tp-dim">⚔'+(u.cp||0)+' 🪓'+(u.gp||0)+' 🔨'+(u.kp||0)+'</span>';
         let btn;
         if(inParty(u)) btn=isLeaderU(u)?'<span class="tp-tag">👑 leader</span>':'<span class="tp-tag">in party</span>';
         else if(partyInvites.some(i=>i.uid===u.id)) btn='<span class="tp-tag">⏳ awaiting</span>';
         else if(wouldLead&&u.id===wouldLead.id) btn='<span class="tp-tag">👑 leads</span>';
-        else if(partySlots()>=MAX_PARTY) btn='<span class="tp-dim">party full</span>';
+        else if(partySlots()>=MAX_PARTY) btn='<span class="tp-dim">full</span>';
         else btn='<button class="tp-inv" onclick="invitePlayer('+u.id+')">Invite</button>';
-        ptRows+='<div class="tp-ally"><span class="tp-ally-n">'+(u.name||'Warrior')+' '+st+'</span>'+btn+'</div>';
+        ptRows+='<span class="tp-a-n">'+(u.name||'Warrior')+'</span>'
+          +'<span class="tp-a-s">'+(u.cp||0)+'</span><span class="tp-a-s">'+(u.gp||0)+'</span><span class="tp-a-s">'+(u.kp||0)+'</span>'
+          +'<span class="tp-a-act">'+btn+'</span>';
       }
+      ptRows+='</div>';
       if(party) ptRows+='<div class="tp-row tp-dim">Combined ⚔'+partyStats().cp+' · 🪓'+partyStats().gp+' · 🔨'+partyStats().kp+' — <a href="#" onclick="openParty();return false" style="color:var(--gold)">open party panel</a></div>';
       else ptRows+='<div class="tp-row tp-dim">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
     }
