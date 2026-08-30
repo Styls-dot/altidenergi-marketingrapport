@@ -205,12 +205,17 @@ Server: `banner_color` + `sigil` på guilds-tabellen, kun leder/vice kan
 ændre; eksponeres via territory `/state`, så fjenders bannere følger med
 fog-reglerne.
 
-**Guild-vindue (demo, faner):** en Guild-knap åbner et vindue med tre faner —
-**Info** (banner, navn, rang i standings, tiles, ✦/dag, bankede point, sæson
-tilbage, bygninger, captures; at-risk-advarsel med "Show"; leder-flag med
-hop-til-kort; territorie-besked), **Upgrades** (Season Tree + banner-editor)
-og **Ranking** (leaderboard). Territorie-beskeden er bevidst adskilt fra
-guild-chatten i selve Void Idle.
+**Guild-vindue (demo, faner):** en Guild-knap åbner et vindue med seks faner —
+**Info** (banner, navn, rang, tiles, ✦/dag, bankede point, bygninger, captures;
+sæson-nedtælling med udbytte pr. felttype + samlet payout ved sæsonslut;
+at-risk-advarsel med "Show"; leder-flag med hop-til-kort; **rally-punkt** som
+leder sætter og alle kan hoppe til; territorie-besked adskilt fra Void Idle-chatten),
+**Members-fanen** (roster med roller — Leader/Vice/Officer/Member, som leder kan
+forfremme — position og Jump-til-figur), **War-fanen** (aktive belejringer: egne
+angreb og felter under angreb med ETA og Jump), **Upgrades** (Season Tree +
+banner-editor), **Ranking** (leaderboard) og **News** (kamp-log med ulæst-badge).
+Rally vises som pulserende 📣 på kortet. Roller gater i det rigtige spil hvem der
+må sætte flag, købe opgraderinger og skrive beskeden.
 
 **Guild-opslag (announcements).** Ledelsen kan skrive ét fast opslag til
 holdet (community-forslag — kendt fra lignende spil):
