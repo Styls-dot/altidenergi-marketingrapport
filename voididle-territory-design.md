@@ -160,6 +160,16 @@ Pr. deltagende hold, sorteret efter føring:
 - Medlemmer markeres visuelt (ring; leder får krone), og leder/medlem vises i
   statuslinjen. Lederen marcherer frit; resten følger efter af sig selv.
 
+## 9b. Koordinater og søgning
+
+- **Hvert felt har en koordinat** (`q,r`), der vises som et lille tal på selve
+  feltet, når man er zoomet lidt ind, og som et 📍-chip i felt-infoens overskrift.
+  Så kan spillere aftale mødesteder ("mødes ved -14,-2").
+- **Søgefunktion:** en 🔍-knap i toppen åbner en lille søgelinje. Skriv en koordinat
+  (fx `3,-2`), tryk Go/Enter, og kortet hopper hen til feltet og fremhæver det med
+  en pulserende guld-ring. Felter i tågen kan også søges frem (kortet hopper derhen,
+  men indholdet er stadig skjult, til man har syn).
+
 ## 10. Point, opgraderinger og sæsoner
 
 - 1-3 ✦ pr. felt pr. 24 t ejerskab (terræntabellen). Sæsonpoint bruges på

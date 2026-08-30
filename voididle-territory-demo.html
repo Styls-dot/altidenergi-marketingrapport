@@ -70,6 +70,28 @@
     display:flex; flex-direction:column; gap:8px; pointer-events:none;
   }
   .foot>*{pointer-events:auto}
+  #findBar[hidden]{display:none}
+  #findBar{
+    position:fixed; z-index:45; left:50%; transform:translateX(-50%);
+    top:calc(env(safe-area-inset-top,0px) + 52px);
+    display:flex; align-items:center; gap:7px; width:min(320px, calc(100vw - 24px));
+    background:linear-gradient(180deg, rgba(30,40,33,0.97), rgba(16,23,18,0.98));
+    border:1.5px solid rgba(138,107,47,0.8); border-radius:11px; padding:8px 9px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(217,164,74,0.15);
+  }
+  #findBar .fb-ic{font-size:13px; opacity:.75; padding-left:2px}
+  #findInput{
+    flex:1; min-width:0; background:rgba(12,18,14,0.8);
+    border:1.5px solid rgba(138,107,47,0.5); border-radius:8px; color:var(--text);
+    font:400 13px Poppins,sans-serif; padding:8px 10px; outline:none;
+    -webkit-user-select:text; user-select:text; touch-action:auto;
+  }
+  #findInput:focus{border-color:var(--jade)}
+  #findInput::placeholder{color:var(--muted)}
+  .fb-go{background:linear-gradient(180deg,#C9A24A,#8A6B2F); border:none; color:#1a130a;
+    font:700 12px Poppins,sans-serif; border-radius:8px; padding:8px 13px; cursor:pointer}
+  .fb-x{background:transparent; border:1px solid rgba(138,107,47,0.5); color:var(--muted);
+    border-radius:8px; padding:7px 9px; font-size:12px; cursor:pointer}
   #tilePop{
     position:fixed; z-index:40; width:266px; transform:translateX(-50%);
     background:
@@ -92,6 +114,8 @@
     border-image:linear-gradient(90deg, transparent, rgba(180,155,98,0.5), transparent) 1;
   }
   .tp-head b{color:var(--gold); font-family:Cinzel,serif; font-size:14px}
+  .tp-coord{font-size:10px; font-variant-numeric:tabular-nums; color:#C9BE9E; opacity:.85;
+    border:1px solid rgba(138,107,47,0.5); border-radius:5px; padding:1px 6px; margin-left:7px; white-space:nowrap}
   .tp-owner{font-size:11px; text-align:right}
   .tp-row{padding:3px 0; font-size:11.5px}
   .tp-dim{opacity:.6}
@@ -353,11 +377,18 @@
   <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
   <div class="stat" title="Season time left">🗓 <b id="hSeason">–</b></div>
   <div class="spacer"></div>
+  <button class="hbtn" id="bFind" title="Find a tile by coordinate">🔍</button>
   <button class="hbtn" id="bParty">👥 Party<span class="badge" id="partyBadge" style="display:none">0</span></button>
   <button class="hbtn" id="bGuild">⚔ Guild</button>
   <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
 </div>
 
+<div id="findBar" hidden>
+  <span class="fb-ic">🔍</span>
+  <input id="findInput" type="text" inputmode="text" autocomplete="off" placeholder="Go to tile — e.g. 3,-2">
+  <button id="findGo" class="fb-go">Go</button>
+  <button id="findClose" class="fb-x" aria-label="Close">✕</button>
+</div>
 <div id="tilePop" hidden></div>
 <div id="selCard" hidden>
   <img id="scAvatar" alt="">
@@ -517,6 +548,7 @@ let guilds=[], units=[], banner=null, visSet=new Set();
 let day=1, phase='intro', seasonEndAt=0, lastDayTick=0, unread=0;
 let selUnit=null, selField=null, reach=new Map(); // key -> 'move'|'attack'
 let tapFlash=null; // {q,r,t} kort blink ved hvert tryk
+let findSel=null;  // {q,r,t} fremhævet felt fra koordinat-søgning
 let fx=[];         // erobrings-effekter {q,r,t,color}
 let pendingPlace=null; // borg-placering afventer bekræftelse
 const easeIO=t=>t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
@@ -1492,6 +1524,7 @@ function closePanels(){
   document.getElementById('pLog').classList.remove('open');
   document.getElementById('pSiege').classList.remove('open');
   document.getElementById('pParty').classList.remove('open');
+  const fb=document.getElementById('findBar'); if(fb) fb.hidden=true;
   siegeView=null;
 }
 
@@ -1953,9 +1986,10 @@ function describeField(f){
   const known=visSet.has(k)?f:(seen.get(k)||null);
   const el=document.getElementById('tilePop');
   tilePopAt={q:f.q,r:f.r}; setActions([]);
-  if(!known){ el.innerHTML='<div class="tp-head"><b>Unknown lands</b></div><div class="tp-row">The fog hides this tile — move closer, or build a 🗼 watchtower.</div>'; el.hidden=false; updateTilePop(); return; }
+  const coord='<span class="tp-coord">📍 '+f.q+','+f.r+'</span>';
+  if(!known){ el.innerHTML='<div class="tp-head"><b>Unknown lands</b>'+coord+'</div><div class="tp-row">The fog hides this tile — move closer, or build a 🗼 watchtower.</div>'; el.hidden=false; updateTilePop(); return; }
   if(known.type==='water'){
-    el.innerHTML='<div class="tp-head"><b>Lake</b></div><div class="tp-row">🌊 Deep water — impassable. Units and routes go around it, and no one can hold it.</div>';
+    el.innerHTML='<div class="tp-head"><b>Lake</b>'+coord+'</div><div class="tp-row">🌊 Deep water — impassable. Units and routes go around it, and no one can hold it.</div>';
     el.hidden=false; updateTilePop(); return;
   }
   const TERR={normal:'Meadow',farm:'Farm',forest:'Forest',mountain:'Mountain',vein:'Gold Vein'};
@@ -2087,7 +2121,7 @@ function describeField(f){
       } else ptRows+='<div class="tp-row tp-dim" style="margin-top:2px">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
     }
   }
-  el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b><span class="tp-owner">'+who+'</span></div>'
+  el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b>'+coord+'<span class="tp-owner">'+who+'</span></div>'
     +rows+noteRow+ptRows
     +(acts.length?'<div class="tp-acts">'+acts.map(b=>'<button class="abtn'+(b.gold?' gold':'')+'" onclick="'+b.fn+'">'+b.label+'</button>').join('')+'</div>':'');
   el.hidden=false;
@@ -2381,6 +2415,18 @@ function draw(){
         ctx2.restore();
       }
     }
+    // koordinat-label: lille tal i bunden af hvert felt, så man kan aftale mødesteder
+    // og søge dem frem. Vises når man er zoomet lidt ind, så oversigten ikke roder.
+    if(cam.z>=1.1){
+      const cs=f.q+','+f.r, cy=p.y+HEX*0.72;
+      const hot=findSel&&findSel.q===f.q&&findSel.r===f.r&&now-findSel.t<3000;
+      ctx2.font=(hot?'700 7px':'600 6px')+' Poppins,sans-serif';
+      ctx2.textAlign='center'; ctx2.textBaseline='middle';
+      ctx2.lineWidth=2.4; ctx2.strokeStyle='rgba(10,14,11,0.72)'; ctx2.lineJoin='round';
+      ctx2.strokeText(cs,p.x,cy);
+      ctx2.fillStyle=hot?'#F2D48A':(vis?'rgba(232,228,216,0.6)':'rgba(232,228,216,0.32)');
+      ctx2.fillText(cs,p.x,cy);
+    }
   }
   // markeringer i eget lag OVEN PÅ alle felter, så nabofelters kant aldrig
   // dækker dem. Dækker næsten hele den sorte kant (lader en hårfin rest stå).
@@ -2399,6 +2445,16 @@ function draw(){
       ctx2.save(); ctx2.shadowColor='#D9A44A'; ctx2.shadowBlur=9;
       ctx2.strokeStyle='rgba(217,164,74,0.9)'; ctx2.lineWidth=2.2; ctx2.stroke(); ctx2.restore();
     }
+  }
+  // søgnings-markør: pulserende guld-ring om det felt man lige har søgt frem
+  if(findSel){
+    const age=now-findSel.t;
+    if(age<3000){
+      const p=hexToPx(findSel.q,findSel.r), pl=0.55+0.35*Math.abs(Math.sin(now/260));
+      hexPath(p.x,p.y,HEX-2);
+      ctx2.save(); ctx2.globalAlpha=pl; ctx2.shadowColor='#D9A44A'; ctx2.shadowBlur=12;
+      ctx2.strokeStyle='#F2D48A'; ctx2.lineWidth=2.6; ctx2.stroke(); ctx2.restore();
+    } else findSel=null;
   }
   // tryk-blink: hvert tap giver synlig feedback, også når intet sker
   if(tapFlash){
@@ -2661,6 +2717,34 @@ function startGame(c){
 }
 
 /* ================= Paneler ================= */
+/* ============ Koordinat-søgning: find og hop til et felt ============ */
+function toggleFind(){
+  const bar=document.getElementById('findBar');
+  const show=bar.hidden;
+  if(show){ closePanels(); hideTilePop(); }
+  bar.hidden=!show;
+  if(show){ const i=document.getElementById('findInput'); i.value=''; setTimeout(()=>i.focus(),30); }
+}
+function closeFind(){ document.getElementById('findBar').hidden=true; }
+function doFind(){
+  const raw=(document.getElementById('findInput').value||'').trim();
+  if(!raw){ toast('Type a coordinate, e.g. 3,-2'); return; }
+  const m=raw.match(/-?\d+/g);
+  if(!m||m.length<2){ toast('Use the form q,r — e.g. 3,-2'); return; }
+  const q=parseInt(m[0],10), r=parseInt(m[1],10);
+  const f=F(q,r);
+  if(!f){ toast('No tile at ('+q+','+r+') — it is outside the realm'); return; }
+  closeFind();
+  jumpTo(q,r);
+  if(cam.z<1.4) cam.z=1.6;               // zoom ind så koordinaten er læsbar
+  findSel={q,r,t:Date.now()};            // fremhæv feltet et øjeblik
+  const known=visSet.has(key(q,r))||seen.has(key(q,r));
+  toast('📍 Tile ('+q+','+r+')'+(known?'':' — still in the fog'));
+}
+document.getElementById('bFind').addEventListener('click',toggleFind);
+document.getElementById('findGo').addEventListener('click',doFind);
+document.getElementById('findClose').addEventListener('click',closeFind);
+document.getElementById('findInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doFind(); } else if(e.key==='Escape'){ closeFind(); } });
 document.getElementById('bParty').addEventListener('click',openParty);
 document.getElementById('bGuild').addEventListener('click',()=>{
   closePanels();
