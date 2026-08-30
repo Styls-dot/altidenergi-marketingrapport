@@ -139,7 +139,13 @@ Pr. deltagende hold, sorteret efter føring:
   er nye rækker i samme tabel. Artwork foreligger for begge + guild-borgen.
 
 
-**Bygningstyper (demo):** 🗼 Vagttårn (syn +2, alle felter), 🏰 Fort (+75% forsvar, alle felter), 🪚 Savværk (+1 træ/døgn, kun skov), ⛏ Mine (+1 sten/døgn, kun bjerg) og 🌾 Granary (fordobler feltets point, kun mark). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. **Ressource-økonomi:** savværk/mine koster ✦ (bootstrap) og producerer træ/sten i guildens lager; vagttårn koster 4 🪵 træ og fort koster 5 🪨 sten + 3 🪵 træ. Så point → savværk/mine → træ/sten → tårn/fort.
+**Bygningstyper (demo):** 🗼 Vagttårn (syn +2, alle felter), 🏰 Fort (+75% forsvar, alle felter), 🪚 Savværk (+1 træ/døgn, kun skov), ⛏ Mine (+1 sten/døgn, kun bjerg) og 🌾 Granary (fordobler feltets point, kun mark). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. **Ressource-økonomi:** savværk/mine koster ✦ (bootstrap) og producerer træ/sten i guildens lager; vagttårn koster 4 🪵 træ og fort koster 5 🪨 sten + 3 🪵 træ. Så point → savværk/mine → træ/sten → tårn/fort. **Start-lager:** hver guild starter
+med et lille lager (8 ✦, 10 🪵, 8 🪨), så man kan bygge fra dag 1. Når man afgiver en
+byggeordre, sendes den valgte figur automatisk hen til feltet og bygger (byggeri
+skrider kun frem, mens en af ens figurer står på feltet).
+
+**Mobil-UI:** på små skærme samles alle top-knapperne (🔍 Find, 👥 Party, ⚔ Guild, Log)
+bag en ☰-menuknap med en samlet notifikations-prik; på desktop står de inline.
 ## 9. Grupper (party) på kortet
 
 - **Invitation:** står flere allierede på samme felt, ser man dem i felt-infoen
