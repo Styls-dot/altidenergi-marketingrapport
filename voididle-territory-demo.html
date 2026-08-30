@@ -1943,6 +1943,18 @@ function draw(){
       ctx2.shadowColor='rgba(255,255,255,0.9)'; ctx2.shadowBlur=8;
       ctx2.strokeStyle='#FFFFFF'; ctx2.lineWidth=3; ctx2.stroke();
       ctx2.shadowBlur=0;
+      // borgens synsradius: stiplet ring + oeje, saa man ser hvad den vil afsloere
+      const vr=(CFG.VISION_BORG+0.5)*HEX*SQ3;
+      ctx2.beginPath(); ctx2.arc(pp.x,pp.y,vr,0,7);
+      ctx2.strokeStyle='rgba(10,30,40,0.7)'; ctx2.lineWidth=3.5;
+      ctx2.setLineDash([7,7]); ctx2.stroke();
+      ctx2.strokeStyle='rgba(150,230,255,0.85)'; ctx2.lineWidth=1.6; ctx2.stroke();
+      ctx2.setLineDash([]);
+      ctx2.font='11px Poppins'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+      ctx2.shadowColor='rgba(0,0,0,0.8)'; ctx2.shadowBlur=4;
+      ctx2.fillStyle='rgba(150,230,255,0.95)';
+      ctx2.fillText('👁',pp.x,pp.y-vr);
+      ctx2.shadowBlur=0;
       ctx2.globalAlpha=0.55+0.35*Math.abs(Math.sin(now/300));
       if(borgImg.complete&&borgImg.naturalWidth){
         const bw=HEX*1.35, bh=bw*(borgImg.naturalHeight/borgImg.naturalWidth);
