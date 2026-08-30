@@ -2198,23 +2198,23 @@ function draw(){
         ctx2.restore();
       }
     }
-    // rækkevidde-highlight: blød glødende kant (grøn = ryk, rød = angreb)
-    if(reach.has(k)){
-      const rc=reach.get(k)==='move'?'#7BE0A8':'#F08070';
-      hexPath(p.x,p.y,HEX-0.2);           // helt ud til kanten, dækker den sorte kant
+  }
+  // markeringer i eget lag OVEN PÅ alle felter, så nabofelters kant aldrig
+  // dækker dem. Dækker næsten hele den sorte kant (lader en hårfin rest stå).
+  if(phase==='play'){
+    for(const [k2,kind] of reach){
+      const [q2,r2]=k2.split(',').map(Number), pp=hexToPx(q2,r2);
+      const rc=kind==='move'?'#7BE0A8':'#F08070';
+      hexPath(pp.x,pp.y,HEX-0.8);
       ctx2.fillStyle=rc+'26'; ctx2.fill();
-      ctx2.save();
-      ctx2.shadowColor=rc; ctx2.shadowBlur=10;
-      ctx2.strokeStyle=rc; ctx2.lineWidth=2.6; ctx2.stroke();
-      ctx2.restore();
+      ctx2.save(); ctx2.shadowColor=rc; ctx2.shadowBlur=10;
+      ctx2.strokeStyle=rc; ctx2.lineWidth=2.6; ctx2.stroke(); ctx2.restore();
     }
-    // gylden glød om den valgte figurs felt
-    if(selUnit&&!selUnit.marching&&selUnit.q===f.q&&selUnit.r===f.r&&vis){
-      hexPath(p.x,p.y,HEX-0.2);
-      ctx2.save();
-      ctx2.shadowColor='#D9A44A'; ctx2.shadowBlur=9;
-      ctx2.strokeStyle='rgba(217,164,74,0.9)'; ctx2.lineWidth=2.2; ctx2.stroke();
-      ctx2.restore();
+    if(selUnit&&!selUnit.marching&&visSet.has(key(selUnit.q,selUnit.r))){
+      const pp=hexToPx(selUnit.q,selUnit.r);
+      hexPath(pp.x,pp.y,HEX-0.8);
+      ctx2.save(); ctx2.shadowColor='#D9A44A'; ctx2.shadowBlur=9;
+      ctx2.strokeStyle='rgba(217,164,74,0.9)'; ctx2.lineWidth=2.2; ctx2.stroke(); ctx2.restore();
     }
   }
   // tryk-blink: hvert tap giver synlig feedback, også når intet sker
