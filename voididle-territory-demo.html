@@ -1963,7 +1963,8 @@ function removeFlag(q,r){
 }
 function orderBuild(q,r,kind){
   const me=guilds.find(g=>g.player), f=F(q,r), B=BUILDINGS[kind];
-  if(!f||!B||f.owner!==me.id||hasBuilding(f)||f.building){ toast('Cannot build here'); return; }
+  if(!f||!B||f.owner!==me.id){ toast('Cannot build here'); return; }
+  if(hasBuilding(f)||f.building){ toast('This tile already has a building — only one per tile'); return; }
   if(!canBuildOn(kind,f)){ toast(B.name+' can only be built on '+TERR_LABEL[B.terrain[0]]+' tiles'); return; }
   const c=B.cost();
   if(!canAfford(me,c)){ toast('Not enough — '+B.name+' costs '+costText(c)); return; }
