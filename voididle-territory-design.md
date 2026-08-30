@@ -137,7 +137,7 @@ Pr. deltagende hold, sorteret efter føring:
   er nye rækker i samme tabel. Artwork foreligger for begge + guild-borgen.
 
 
-**Bygningstyper (demo):** 🗼 Vagttårn (syn +2), 🏰 Fort (+75% forsvar), 🪚 Savværk (+1 træ/døgn) og ⛏ Mine (+1 sten/døgn). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. Træ og sten samles i guildens lager (guild.wood/stone) og vil i det rigtige spil finansiere byggeri/opgraderinger.
+**Bygningstyper (demo):** 🗼 Vagttårn (syn +2), 🏰 Fort (+75% forsvar), 🪚 Savværk (+1 træ/døgn) og ⛏ Mine (+1 sten/døgn). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. **Ressource-økonomi:** savværk/mine koster ✦ (bootstrap) og producerer træ/sten i guildens lager; vagttårn koster 4 🪵 træ og fort koster 5 🪨 sten + 3 🪵 træ. Så point → savværk/mine → træ/sten → tårn/fort.
 ## 9. Grupper (party) på kortet
 
 - Spillere kan joine et **pt**; **pt-lederen flytter hele gruppen** med ét
