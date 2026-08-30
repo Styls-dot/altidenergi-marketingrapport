@@ -2147,51 +2147,65 @@ function draw(){
       ctx2.lineWidth=2; ctx2.stroke();
     } else tapFlash=null;
   }
-  // march-linjer: stiplet linje mod målet — man ser AT noget er på vej,
-  // men ikke hvad eller hvor mange (flere enheder på samme rute = én linje)
-  if(phase==='play'){
-    const lines={};
-    for(const u of units){
-      const m=u.marching; if(!m) continue;
-      const fk=key(m.fq,m.fr), tk=key(m.tq,m.tr);
-      if(!visSet.has(fk)&&!visSet.has(tk)) continue;
-      const id=fk+'>'+tk;
-      const e=easeIO(Math.min(1,(now-m.t0)/m.dur));
-      if(!lines[id]) lines[id]={m,own:guilds[u.g].player,e};
-      else{ lines[id].own=lines[id].own||guilds[u.g].player; lines[id].e=Math.max(lines[id].e,e); }
-    }
-    for(const id in lines){
-      // linjen udgår fra figurens aktuelle position og krymper mod målet —
-      // og klippes ved tågekanten: kun de stykker, der løber gennem dit syn, tegnes
-      const {m,own,e}=lines[id];
-      const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr);
-      const sx=a.x+(b.x-a.x)*e, sy=a.y+(b.y-a.y)*e;
-      const N=10; let run=null; const runs=[];
+  // stiplede ruter — fugleflugt fra figur til mål (bøjer om fjendeland),
+  // klippet ved tågekanten. Egne ruter tegnes som én sammenhængende linje;
+  // fjender vises anonymt (kun det aktuelle skridt, ingen fuld rute).
+  function drawFogLine(pts,color,w){
+    ctx2.strokeStyle=color; ctx2.lineWidth=w;
+    ctx2.setLineDash([6,5]); ctx2.lineDashOffset=-(now/55)%11;
+    for(let s=0;s<pts.length-1;s++){
+      const A=pts[s], B=pts[s+1], N=8; let run=null;
       for(let i=0;i<=N;i++){
-        const t=i/N, px=sx+(b.x-sx)*t, py=sy+(b.y-sy)*t;
+        const t=i/N, px=A.x+(B.x-A.x)*t, py=A.y+(B.y-A.y)*t;
         const hc=pxToHex(px,py);
-        if(visSet.has(key(hc.q,hc.r))){
-          if(!run) run={x0:px,y0:py};
-          run.x1=px; run.y1=py;
-        } else if(run){ runs.push(run); run=null; }
+        if(visSet.has(key(hc.q,hc.r))){ if(!run) run={x0:px,y0:py}; run.x1=px; run.y1=py; }
+        else if(run){ ctx2.beginPath(); ctx2.moveTo(run.x0,run.y0); ctx2.lineTo(run.x1,run.y1); ctx2.stroke(); run=null; }
       }
-      if(run) runs.push(run);
-      if(!runs.length) continue;
-      ctx2.strokeStyle=own?'#57B98A':'rgba(232,228,216,0.85)';
-      ctx2.lineWidth=2.6;
-      ctx2.setLineDash([6,5]); ctx2.lineDashOffset=-(now/55)%11;
-      for(const r of runs){
-        ctx2.beginPath(); ctx2.moveTo(r.x0,r.y0); ctx2.lineTo(r.x1,r.y1); ctx2.stroke();
-      }
-      ctx2.setLineDash([]); ctx2.lineDashOffset=0;
+      if(run){ ctx2.beginPath(); ctx2.moveTo(run.x0,run.y0); ctx2.lineTo(run.x1,run.y1); ctx2.stroke(); }
+    }
+    ctx2.setLineDash([]); ctx2.lineDashOffset=0;
+  }
+  function livePos(u){
+    if(u.marching){ const m=u.marching, e=easeIO(Math.min(1,(now-m.t0)/m.dur));
+      const a=hexToPx(m.fq,m.fr), b=hexToPx(m.tq,m.tr); return {x:a.x+(b.x-a.x)*e, y:a.y+(b.y-a.y)*e}; }
+    return hexToPx(u.q,u.r);
+  }
+  if(phase==='play'){
+    // fjendtlige marcher: anonym, kun aktuelle skridt
+    const enemyLines={};
+    for(const u of units){
+      if(guilds[u.g].player) continue;
+      const m=u.marching; if(!m) continue;
+      if(!visSet.has(key(m.fq,m.fr))&&!visSet.has(key(m.tq,m.tr))) continue;
+      enemyLines[key(m.fq,m.fr)+'>'+key(m.tq,m.tr)]={p:livePos(u),b:hexToPx(m.tq,m.tr)};
+    }
+    for(const id in enemyLines){ const L=enemyLines[id]; drawFogLine([L.p,L.b],'rgba(232,228,216,0.85)',2.6); }
+    // egne marcher: hele ruten som én linje fra figurens position til målet
+    for(const u of units){
+      if(!guilds[u.g].player) continue;
+      const rest=u.route&&u.route.length?u.route:null;
+      if(!u.marching&&!rest) continue;
+      const pts=[livePos(u)];
+      if(u.marching) pts.push(hexToPx(u.marching.tq,u.marching.tr));
+      if(rest) for(const st of rest) pts.push(hexToPx(st.q,st.r));
+      drawFogLine(pts,'#57B98A',2.6);
+      // lille mål-markør
+      const end=pts[pts.length-1];
+      ctx2.fillStyle='#57B98A'; ctx2.beginPath(); ctx2.arc(end.x,end.y,3.2,0,7); ctx2.fill();
     }
   }
-  // planlagte ruter: svage guldprikker langs den valgte figurs rute
-  if(phase==='play'&&selUnit&&selUnit.route&&selUnit.route.length){
-    ctx2.fillStyle='rgba(217,164,74,0.55)';
-    for(const st of selUnit.route){
-      const rp=hexToPx(st.q,st.r);
-      ctx2.beginPath(); ctx2.arc(rp.x,rp.y,3,0,7); ctx2.fill();
+  // rute-preview: når et felt er valgt, vis den stiplede rute FØR man trykker
+  if(phase==='play'&&selUnit&&!selUnit.marching&&tilePopAt&&uiFocus==='field'){
+    const me=guilds.find(g=>g.player);
+    const tf=F(tilePopAt.q,tilePopAt.r);
+    if(tf&&!(selUnit.q===tf.q&&selUnit.r===tf.r)&&tf.owner!==undefined){
+      const rt=findRoute(selUnit,tf.q,tf.r,tf.owner!==me.id);
+      if(rt&&rt.length){
+        const pts=[hexToPx(selUnit.q,selUnit.r)]; for(const st of rt) pts.push(hexToPx(st.q,st.r));
+        drawFogLine(pts,'rgba(232,228,216,0.55)',2);
+        const end=pts[pts.length-1];
+        ctx2.fillStyle='rgba(232,228,216,0.7)'; ctx2.beginPath(); ctx2.arc(end.x,end.y,3,0,7); ctx2.fill();
+      }
     }
   }
   // enheder som avatarer med glidende bevægelse
