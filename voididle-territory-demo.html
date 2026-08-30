@@ -246,7 +246,34 @@
   .hud .brand{flex-shrink:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .hdim{font-size:10px; color:var(--muted); opacity:.85}
   .hdim b{color:var(--gold); font-variant-numeric:tabular-nums}
-  #standings{margin-bottom:14px}
+  .gtabs{display:flex; gap:6px; margin-bottom:14px}
+  .gtab{flex:1; padding:9px 6px; border:1.5px solid rgba(138,107,47,0.55);
+    background:linear-gradient(180deg, rgba(30,40,33,0.7), rgba(16,23,18,0.7));
+    color:var(--muted); border-radius:9px; cursor:pointer;
+    font:600 13px Poppins,sans-serif}
+  .gtab.on{color:var(--gold); border-color:var(--gold);
+    background:linear-gradient(180deg, rgba(217,164,74,0.14), rgba(30,40,33,0.7))}
+  .gi-head{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+  .gi-ban{width:34px; height:52px; object-fit:contain; flex-shrink:0}
+  .gi-title{font-family:Cinzel,serif; font-size:20px; color:var(--gold); line-height:1.1}
+  .gi-title .sub2{font:400 11px Poppins,sans-serif; color:var(--muted); letter-spacing:.04em}
+  .gi-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px}
+  .gi-cell{background:rgba(20,28,22,0.5); border:1px solid rgba(74,62,32,0.4);
+    border-radius:9px; padding:8px 10px}
+  .gi-cell .n{font-size:18px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums}
+  .gi-cell .l{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+  .gi-warn{background:rgba(210,91,74,0.14); border:1px solid rgba(210,91,74,0.6);
+    border-radius:9px; padding:9px 11px; margin-bottom:12px; font-size:12.5px}
+  .gi-sec{font-family:Cinzel,serif; color:var(--gold); font-size:14px; margin:14px 0 6px}
+  .gi-flag{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px;
+    background:rgba(20,28,22,0.5); border:1px solid rgba(74,62,32,0.4); margin-bottom:5px; font-size:12.5px}
+  .gi-flag .fl-loc{flex:1}
+  .gi-jump{padding:5px 10px; font-size:11.5px; border:1px solid var(--gold); color:var(--gold);
+    background:rgba(217,164,74,0.1); border-radius:7px; cursor:pointer}
+  .gi-note{width:100%; box-sizing:border-box; min-height:64px; resize:vertical;
+    background:rgba(12,18,14,0.7); border:1.5px solid rgba(138,107,47,0.5); border-radius:9px;
+    color:var(--text); font:400 12.5px Poppins,sans-serif; padding:9px 11px}
+  #standings{margin-bottom:0}
   .lb-row{display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:8px;
     margin-bottom:4px; background:rgba(20,28,22,0.5); border:1px solid rgba(74,62,32,0.4)}
   .lb-row.me{border-color:#8A6B2F; background:rgba(217,164,74,0.10)}
@@ -273,7 +300,7 @@
   <div class="stat"><b class="g" id="hPts">0</b> ✦</div>
   <div class="stat" title="Season time left">🗓 <b id="hSeason">–</b></div>
   <div class="spacer"></div>
-  <button class="hbtn" id="bUpg">Upgrades</button>
+  <button class="hbtn" id="bGuild">⚔ Guild</button>
   <button class="hbtn" id="bLog">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
 </div>
 
@@ -295,11 +322,19 @@
 </div>
 
 <div class="panel" id="pUpg">
-  <div id="standings"></div>
-  <h2>Season Tree</h2>
-  <p class="sub" id="upgPts">You have <b style="color:var(--gold)">0 ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.</p>
-  <div id="upgList"></div>
-  <div id="bannerEd"></div>
+  <div class="gtabs">
+    <button class="gtab on" data-tab="info" onclick="guildTab('info')">Info</button>
+    <button class="gtab" data-tab="upg" onclick="guildTab('upg')">Upgrades</button>
+    <button class="gtab" data-tab="rank" onclick="guildTab('rank')">Ranking</button>
+  </div>
+  <div id="gtInfo" class="gtc"></div>
+  <div id="gtUpg" class="gtc" hidden>
+    <h2>Season Tree</h2>
+    <p class="sub" id="upgPts">You have <b style="color:var(--gold)">0 ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.</p>
+    <div id="upgList"></div>
+    <div id="bannerEd"></div>
+  </div>
+  <div id="gtRank" class="gtc" hidden><div id="standings"></div></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Close</button>
   <button class="abtn" style="width:100%;margin-top:8px;color:var(--cinnabar)" onclick="resetDemo()">Reset the demo (start over)</button>
 </div>
@@ -470,6 +505,7 @@ const avatarImg=new Image(); avatarImg.src=AVATAR_SRC;
 let towerMode=false, bannerMode=false;
 let party=null; // {leader:unitId, members:[unitIds]} — lederen flytter hele gruppen
 let flags=[];   // leder-ordrer: {q,r,type:'att'|'def'} — synlige for hele holdet
+let guildNote='';  // territorie-besked (adskilt fra guild-chatten i selve Void Idle)
 const upgrades={boots:0, garrison:0, supply:0, vanguard:0, watch:0, tower:true};
 const logs=[];
 
@@ -516,7 +552,7 @@ function saveGame(){
   if(phase!=='play') return;
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      day,lastDayTick,banner,upgrades,unread,cam,party,flags,
+      day,lastDayTick,banner,upgrades,unread,cam,party,flags,guildNote,
       seen:[...seen.entries()],
       logs:logs.slice(0,40),
       guilds,units,
@@ -548,7 +584,7 @@ function loadGame(){
     }
     guilds=s.guilds; units=s.units; banner=s.banner||null;
     party=(s.party&&s.party.members&&s.party.members.every(id=>s.units.some(u=>u.id===id)))?s.party:null;
-    flags=s.flags||[];
+    flags=s.flags||[]; guildNote=s.guildNote||'';
     if(s.seen){ seen.clear(); for(const[k,v]of s.seen) seen.set(k,v); }
     // gamle gemmer mangler navne/tags — udfyld
     const TAGS=['JADE','STRM','AZUR','MIST'];
@@ -1075,6 +1111,66 @@ const UPG=[
    buy(){upgrades.watch++; computeVision();}},
 ];
 // Bygninger placeres nu direkte: tap et eget felt → "Byg 🗼/🏰" i handlingsbjælken.
+let guildTabCur='info';
+function guildTab(t){
+  guildTabCur=t;
+  for(const el of document.querySelectorAll('.gtab')) el.classList.toggle('on',el.dataset.tab===t);
+  document.getElementById('gtInfo').hidden=t!=='info';
+  document.getElementById('gtUpg').hidden=t!=='upg';
+  document.getElementById('gtRank').hidden=t!=='rank';
+  if(t==='info') renderGuildInfo();
+  else if(t==='upg'){ renderUpg(); renderBannerEditor(); }
+  else if(t==='rank') renderStandings();
+}
+function jumpTo(q,r){
+  closePanels();
+  const p=hexToPx(q,r); cam.x=p.x; cam.y=p.y; if(cam.z<1) cam.z=1.2;
+  tapFlash={q,r,t:Date.now()};
+}
+function setGuildNote(v){ guildNote=v.slice(0,500); saveGame(); }
+function renderGuildInfo(){
+  const el=document.getElementById('gtInfo'); if(!el) return;
+  const me=guilds.find(g=>g.player); if(!me) return;
+  const tiles=fieldsOwned(me.id);
+  let yld=0,towers=0,forts=0;
+  for(const f of fields.values()) if(f.owner===me.id){ yld+=yieldOf(f); if(f.tower)towers++; if(f.fort)forts++; }
+  const members=units.filter(u=>u.g===me.id).length;
+  const ranks=guilds.map(g=>({g,t:fieldsOwned(g.id)})).sort((a,b)=>b.t-a.t);
+  const rank=ranks.findIndex(r=>r.g.id===me.id)+1;
+  const seasonLeft=Math.max(0,CFG.SEASON_DAYS-day+1);
+  const myFlags=flags.slice();
+  const risk=[...atRiskSet];
+  let h='<div class="gi-head">'
+    +'<img class="gi-ban" src="'+BANNERS_B64[bannerIdx(me.color)]+'" alt="">'
+    +'<div><div class="gi-title">'+(me.sigil?sigilTag(me.sigil,18)+' ':'')+me.name+'</div>'
+    +'<div class="sub2">['+me.tag+'] · rank #'+rank+' of '+guilds.length+' · '+members+' members</div></div></div>';
+  h+='<div class="gi-grid">'
+    +'<div class="gi-cell"><div class="n">'+tiles+'</div><div class="l">Tiles held</div></div>'
+    +'<div class="gi-cell"><div class="n">✦ '+yld+'</div><div class="l">Points / day</div></div>'
+    +'<div class="gi-cell"><div class="n">'+me.pts+'</div><div class="l">Season ✦ banked</div></div>'
+    +'<div class="gi-cell"><div class="n">'+seasonLeft+'d</div><div class="l">Season left</div></div>'
+    +'<div class="gi-cell"><div class="n">🗼'+towers+' 🏰'+forts+'</div><div class="l">Buildings</div></div>'
+    +'<div class="gi-cell"><div class="n">'+(me.captures||0)+'</div><div class="l">Captures</div></div>'
+    +'</div>';
+  if(risk.length){
+    const r0=risk[0].split(',').map(Number);
+    h+='<div class="gi-warn">⚠️ <b>'+risk.length+' tile(s) at risk</b> of being cut off by an ongoing siege. '
+      +'<button class="gi-jump" onclick="jumpTo('+r0[0]+','+r0[1]+')">Show</button></div>';
+  }
+  // leder-ordrer med hop-til-kort
+  h+='<div class="gi-sec">Field orders</div>';
+  if(!myFlags.length) h+='<p class="sub" style="margin:0">No attack or defense flags set. Tap a tile → set a flag.</p>';
+  else h+=myFlags.map(fl=>'<div class="gi-flag"><span>'+(fl.type==='att'?'⚔':'🛡')+'</span>'
+    +'<span class="fl-loc">'+(fl.type==='att'?'Attack':'Defense')+' order · ('+fl.q+','+fl.r+')</span>'
+    +'<button class="gi-jump" onclick="jumpTo('+fl.q+','+fl.r+')">Jump</button>'
+    +'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="removeFlag('+fl.q+','+fl.r+');renderGuildInfo()">✖</button></div>').join('');
+  // territorie-besked (ikke den samme som guild-chatten i Void Idle)
+  h+='<div class="gi-sec">Guild message · War of the Realm</div>'
+    +'<p class="sub" style="margin:0 0 6px">Separate from your Void Idle guild chat — leaders pin battle plans here.</p>'
+    +'<textarea class="gi-note" maxlength="500" placeholder="Leaders: write a battle note for the guild…" oninput="setGuildNote(this.value)">'
+    +(guildNote||'').replace(/</g,'&lt;')+'</textarea>';
+  el.innerHTML=h;
+}
 function renderStandings(){
   const el=document.getElementById('standings'); if(!el) return;
   const me=guilds.find(g=>g.player);
@@ -2130,9 +2226,10 @@ function startGame(c){
 }
 
 /* ================= Paneler ================= */
-document.getElementById('bUpg').addEventListener('click',()=>{
-  closePanels(); renderStandings(); renderUpg(); renderBannerEditor();
+document.getElementById('bGuild').addEventListener('click',()=>{
+  closePanels();
   document.getElementById('pUpg').classList.add('open');
+  guildTab('info');
 });
 document.getElementById('bLog').addEventListener('click',()=>{
   closePanels(); unread=0; updateHud();
@@ -2157,7 +2254,10 @@ setInterval(()=>{
       if(tilePopAt){ const tf=F(tilePopAt.q,tilePopAt.r); if(tf) describeField(tf); } }
   }
   if(siegeView) renderSiegePanel();
-  if(document.getElementById('pUpg').classList.contains('open')) renderStandings();
+  if(document.getElementById('pUpg').classList.contains('open')){
+    if(guildTabCur==='info') renderGuildInfo();
+    else if(guildTabCur==='rank') renderStandings();
+  }
 },CFG.TICK_MS);
 setInterval(()=>{ if(phase==='play') tickAI(); },2000);
 requestAnimationFrame(draw);

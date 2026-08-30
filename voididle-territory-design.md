@@ -205,6 +205,13 @@ Server: `banner_color` + `sigil` på guilds-tabellen, kun leder/vice kan
 ændre; eksponeres via territory `/state`, så fjenders bannere følger med
 fog-reglerne.
 
+**Guild-vindue (demo, faner):** en Guild-knap åbner et vindue med tre faner —
+**Info** (banner, navn, rang i standings, tiles, ✦/dag, bankede point, sæson
+tilbage, bygninger, captures; at-risk-advarsel med "Show"; leder-flag med
+hop-til-kort; territorie-besked), **Upgrades** (Season Tree + banner-editor)
+og **Ranking** (leaderboard). Territorie-beskeden er bevidst adskilt fra
+guild-chatten i selve Void Idle.
+
 **Guild-opslag (announcements).** Ledelsen kan skrive ét fast opslag til
 holdet (community-forslag — kendt fra lignende spil):
 
