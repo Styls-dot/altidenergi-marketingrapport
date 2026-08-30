@@ -293,6 +293,7 @@
   .st-break{align-items:center}
   .st-break .l{color:var(--muted)}
   .st-break img.tt{width:26px; height:30px; object-fit:contain; vertical-align:-10px; margin-right:7px}
+  .st-break img.bt{width:24px; height:30px; object-fit:contain; vertical-align:-10px; margin-right:7px}
   .st-break .lbl{display:inline-flex; align-items:center}
   .st-total{border-top:1px solid rgba(74,62,32,0.5); margin-top:6px; padding-top:7px; font-size:13px}
   .st-total b{color:var(--gold)}
@@ -1256,8 +1257,8 @@ function renderGuildInfo(){
   const el=document.getElementById('gtInfo'); if(!el) return;
   const me=guilds.find(g=>g.player); if(!me) return;
   const tiles=fieldsOwned(me.id);
-  let yld=0,towers=0,forts=0;
-  for(const f of fields.values()) if(f.owner===me.id){ yld+=yieldOf(f); if(f.tower)towers++; if(f.fort)forts++; }
+  let yld=0,towers=0,forts=0,building=0;
+  for(const f of fields.values()) if(f.owner===me.id){ yld+=yieldOf(f); if(f.tower)towers++; if(f.fort)forts++; if(f.building)building++; }
   const members=units.filter(u=>u.g===me.id).length;
   const ranks=guilds.map(g=>({g,t:fieldsOwned(g.id)})).sort((a,b)=>b.t-a.t);
   const rank=ranks.findIndex(r=>r.g.id===me.id)+1;
@@ -1272,8 +1273,6 @@ function renderGuildInfo(){
     +'<div class="gi-cell"><div class="n">'+tiles+'</div><div class="l">Tiles held</div></div>'
     +'<div class="gi-cell"><div class="n">✦ '+yld+'</div><div class="l">Points / day</div></div>'
     +'<div class="gi-cell"><div class="n">'+me.pts+'</div><div class="l">Season ✦ banked</div></div>'
-    +'<div class="gi-cell"><div class="n">'+seasonLeft+'d</div><div class="l">Season left</div></div>'
-    +'<div class="gi-cell"><div class="n">🗼'+towers+' 🏰'+forts+'</div><div class="l">Buildings</div></div>'
     +'<div class="gi-cell"><div class="n">'+(me.captures||0)+'</div><div class="l">Captures</div></div>'
     +'</div>';
   if(risk.length){
@@ -1293,6 +1292,13 @@ function renderGuildInfo(){
     h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp][0]+' ×'+cnt[tp]+' · ✦'+TB[tp][1]+' each</span></span><span>✦ '+(cnt[tp]*TB[tp][1])+'/day</span></div>';
   }
   h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+yld+'</b></span></div>';
+  // bygninger: liste med rigtige billeder
+  h+='<div class="gi-sec">Buildings</div>';
+  const BLD=[['tower',WTOWER_SRC,'Watchtower','vision +2 around the tile',towers],
+             ['fort',FORT_SRC,'Fort','+75% defense in sieges',forts]];
+  h+=BLD.map(b=>'<div class="st-break"><span class="lbl"><img class="bt" src="'+b[1]+'" alt="">'
+    +'<span class="l">'+b[2]+' · '+b[3]+'</span></span><span>×'+b[4]+'</span></div>').join('');
+  if(building) h+='<div class="st-break"><span class="l">🔨 Under construction</span><span>×'+building+'</span></div>';
   // leder-ordrer med hop-til-kort
   h+='<div class="gi-sec">Field orders</div>';
   if(!myFlags.length) h+='<p class="sub" style="margin:0">No attack or defense flags set. Tap a tile → set a flag.</p>';
