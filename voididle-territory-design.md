@@ -162,9 +162,11 @@ Pr. deltagende hold, sorteret efter føring:
 
 ## 9b. Koordinater og søgning
 
-- **Hvert felt har en koordinat** (`q,r`), der vises som et lille tal på selve
-  feltet, når man er zoomet lidt ind, og som et 📍-chip i felt-infoens overskrift.
-  Så kan spillere aftale mødesteder ("mødes ved -14,-2").
+- **Hvert felt har en koordinat** (`q,r`). Den vises altid som et 📍-chip i
+  felt-infoens overskrift, så man kan aftale mødesteder ("mødes ved -14,-2").
+- **Tal på selve felterne kan slås til/fra** (afkrydsning i søgelinjen) — **slået
+  fra som standard**, så kortet er rent; når det er tændt, vises et lille tal på
+  hvert felt, når man er zoomet lidt ind. Valget huskes (gemmes).
 - **Søgefunktion:** en 🔍-knap i toppen åbner en lille søgelinje. Skriv en koordinat
   (fx `3,-2`), tryk Go/Enter, og kortet hopper hen til feltet og fremhæver det med
   en pulserende guld-ring. Felter i tågen kan også søges frem (kortet hopper derhen,

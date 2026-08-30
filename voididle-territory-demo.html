@@ -74,12 +74,16 @@
   #findBar{
     position:fixed; z-index:45; left:50%; transform:translateX(-50%);
     top:calc(env(safe-area-inset-top,0px) + 52px);
-    display:flex; align-items:center; gap:7px; width:min(320px, calc(100vw - 24px));
+    display:flex; flex-direction:column; gap:8px; width:min(320px, calc(100vw - 24px));
     background:linear-gradient(180deg, rgba(30,40,33,0.97), rgba(16,23,18,0.98));
-    border:1.5px solid rgba(138,107,47,0.8); border-radius:11px; padding:8px 9px;
+    border:1.5px solid rgba(138,107,47,0.8); border-radius:11px; padding:9px 10px;
     box-shadow:0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(217,164,74,0.15);
   }
+  #findBar .fb-row{display:flex; align-items:center; gap:7px}
   #findBar .fb-ic{font-size:13px; opacity:.75; padding-left:2px}
+  .fb-toggle{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
+    cursor:pointer; padding:1px 2px 0; user-select:none; -webkit-user-select:none}
+  .fb-toggle input{width:15px; height:15px; accent-color:var(--gold); cursor:pointer; flex-shrink:0}
   #findInput{
     flex:1; min-width:0; background:rgba(12,18,14,0.8);
     border:1.5px solid rgba(138,107,47,0.5); border-radius:8px; color:var(--text);
@@ -384,10 +388,13 @@
 </div>
 
 <div id="findBar" hidden>
-  <span class="fb-ic">🔍</span>
-  <input id="findInput" type="text" inputmode="text" autocomplete="off" placeholder="Go to tile — e.g. 3,-2">
-  <button id="findGo" class="fb-go">Go</button>
-  <button id="findClose" class="fb-x" aria-label="Close">✕</button>
+  <div class="fb-row">
+    <span class="fb-ic">🔍</span>
+    <input id="findInput" type="text" inputmode="text" autocomplete="off" placeholder="Go to tile — e.g. 3,-2">
+    <button id="findGo" class="fb-go">Go</button>
+    <button id="findClose" class="fb-x" aria-label="Close">✕</button>
+  </div>
+  <label class="fb-toggle"><input type="checkbox" id="findLabels"> Show tile numbers on the map</label>
 </div>
 <div id="tilePop" hidden></div>
 <div id="selCard" hidden>
@@ -549,6 +556,7 @@ let day=1, phase='intro', seasonEndAt=0, lastDayTick=0, unread=0;
 let selUnit=null, selField=null, reach=new Map(); // key -> 'move'|'attack'
 let tapFlash=null; // {q,r,t} kort blink ved hvert tryk
 let findSel=null;  // {q,r,t} fremhævet felt fra koordinat-søgning
+let showCoords=false; // koordinat-tal på felterne — slået fra som standard, kan tændes
 let fx=[];         // erobrings-effekter {q,r,t,color}
 let pendingPlace=null; // borg-placering afventer bekræftelse
 const easeIO=t=>t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
@@ -686,7 +694,7 @@ function saveGame(){
   if(phase!=='play') return;
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      day,lastDayTick,banner,upgrades,unread,cam,party,flags,guildNote,rally,
+      day,lastDayTick,banner,upgrades,unread,cam,party,flags,guildNote,rally,showCoords,
       seen:[...seen.entries()],
       logs:logs.slice(0,40),
       guilds,units,
@@ -718,7 +726,7 @@ function loadGame(){
     }
     guilds=s.guilds; units=s.units; banner=s.banner||null;
     party=(s.party&&s.party.members&&s.party.members.every(id=>s.units.some(u=>u.id===id)))?s.party:null;
-    flags=s.flags||[]; guildNote=s.guildNote||''; rally=s.rally||null;
+    flags=s.flags||[]; guildNote=s.guildNote||''; rally=s.rally||null; showCoords=!!s.showCoords;
     if(s.seen){ seen.clear(); for(const[k,v]of s.seen) seen.set(k,v); }
     // gamle gemmer mangler navne/tags — udfyld
     const TAGS=['JADE','STRM','AZUR','MIST'];
@@ -2416,8 +2424,9 @@ function draw(){
       }
     }
     // koordinat-label: lille tal i bunden af hvert felt, så man kan aftale mødesteder
-    // og søge dem frem. Vises når man er zoomet lidt ind, så oversigten ikke roder.
-    if(cam.z>=1.1){
+    // og søge dem frem. Slået fra som standard — kan tændes i søgelinjen. Vises kun
+    // når man er zoomet lidt ind, så oversigten ikke roder.
+    if(showCoords&&cam.z>=1.1){
       const cs=f.q+','+f.r, cy=p.y+HEX*0.72;
       const hot=findSel&&findSel.q===f.q&&findSel.r===f.r&&now-findSel.t<3000;
       ctx2.font=(hot?'700 7px':'600 6px')+' Poppins,sans-serif';
@@ -2723,7 +2732,8 @@ function toggleFind(){
   const show=bar.hidden;
   if(show){ closePanels(); hideTilePop(); }
   bar.hidden=!show;
-  if(show){ const i=document.getElementById('findInput'); i.value=''; setTimeout(()=>i.focus(),30); }
+  if(show){ document.getElementById('findLabels').checked=showCoords;
+    const i=document.getElementById('findInput'); i.value=''; setTimeout(()=>i.focus(),30); }
 }
 function closeFind(){ document.getElementById('findBar').hidden=true; }
 function doFind(){
@@ -2742,6 +2752,7 @@ function doFind(){
   toast('📍 Tile ('+q+','+r+')'+(known?'':' — still in the fog'));
 }
 document.getElementById('bFind').addEventListener('click',toggleFind);
+document.getElementById('findLabels').addEventListener('change',e=>{ showCoords=e.target.checked; saveGame(); toast(showCoords?'Tile numbers on — zoom in to read them':'Tile numbers off'); });
 document.getElementById('findGo').addEventListener('click',doFind);
 document.getElementById('findClose').addEventListener('click',closeFind);
 document.getElementById('findInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doFind(); } else if(e.key==='Escape'){ closeFind(); } });
