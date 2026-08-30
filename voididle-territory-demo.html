@@ -543,7 +543,7 @@ function makeTileSprite(img,rot){
   g.beginPath();
   for(let i=0;i<6;i++){
     const a=Math.PI/180*(60*i); // flad-top: hjørner ved 0°,60°,...
-    const x=w/2+(HEX-0.6)*S*Math.cos(a), y=h/2+(HEX-0.6)*S*Math.sin(a); // lige akkurat inde, så artens egen kant klippes
+    const x=w/2+(HEX-0.25)*S*Math.cos(a), y=h/2+(HEX-0.25)*S*Math.sin(a); // næsten helt ud, tynd kant
     i?g.lineTo(x,y):g.moveTo(x,y);
   }
   g.closePath(); g.clip();
@@ -2097,7 +2097,7 @@ function draw(){
         ctx2.restore();
       } else ctx2.drawImage(spr,p.x-tw/2,p.y-th/2,tw,th);
       // ensartet mørk kant mellem alle felter
-      hexPath(p.x,p.y,HEX-0.5); ctx2.strokeStyle='rgba(8,12,10,0.9)'; ctx2.lineWidth=1; ctx2.stroke();
+      hexPath(p.x,p.y,HEX-0.3); ctx2.strokeStyle='rgba(8,12,10,0.85)'; ctx2.lineWidth=0.6; ctx2.stroke();
       hexPath(p.x,p.y,HEX-1.2);
       if(info.type==='vein'&&!veinSprite){ ctx2.fillStyle='rgba(87,185,138,0.35)'; ctx2.fill(); }
       else if(info.type==='mountain'&&!mtnSprite){ ctx2.fillStyle='rgba(15,20,26,0.50)'; ctx2.fill(); }
@@ -2201,19 +2201,19 @@ function draw(){
     // rækkevidde-highlight: blød glødende kant (grøn = ryk, rød = angreb)
     if(reach.has(k)){
       const rc=reach.get(k)==='move'?'#7BE0A8':'#F08070';
-      hexPath(p.x,p.y,HEX-2.5);
-      ctx2.fillStyle=rc+'1F'; ctx2.fill();
+      hexPath(p.x,p.y,HEX-0.2);           // helt ud til kanten, dækker den sorte kant
+      ctx2.fillStyle=rc+'26'; ctx2.fill();
       ctx2.save();
       ctx2.shadowColor=rc; ctx2.shadowBlur=10;
-      ctx2.strokeStyle=rc; ctx2.lineWidth=2.4; ctx2.stroke();
+      ctx2.strokeStyle=rc; ctx2.lineWidth=2.6; ctx2.stroke();
       ctx2.restore();
     }
     // gylden glød om den valgte figurs felt
     if(selUnit&&!selUnit.marching&&selUnit.q===f.q&&selUnit.r===f.r&&vis){
-      hexPath(p.x,p.y,HEX-2.5);
+      hexPath(p.x,p.y,HEX-0.2);
       ctx2.save();
       ctx2.shadowColor='#D9A44A'; ctx2.shadowBlur=9;
-      ctx2.strokeStyle='rgba(217,164,74,0.8)'; ctx2.lineWidth=2; ctx2.stroke();
+      ctx2.strokeStyle='rgba(217,164,74,0.9)'; ctx2.lineWidth=2.2; ctx2.stroke();
       ctx2.restore();
     }
   }
