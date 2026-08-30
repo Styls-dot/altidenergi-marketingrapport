@@ -151,7 +151,7 @@ Pr. deltagende hold, sorteret efter føring:
   neutralt land, uden om fjendtligt område).
   *(I singleplayer-demoen svarer de allierede selv efter et øjeblik; i det rigtige
   multiplayer-spil trykker hver spiller Accept/Decline.)*
-- **Størrelse:** op til **5** i en gruppe.
+- **Størrelse:** op til **4** i en gruppe (matcher resten af spillet).
 - **Samlet magt:** gruppen har en **samlet combat-, gather- og craft-power** lagt
   sammen fra medlemmerne.
 - **Party-knap/-panel:** egen knap i toppen (med medlemsantal-badge) åbner et panel

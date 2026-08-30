@@ -1722,7 +1722,7 @@ function handleTap(sx,sy){
    Up to 5 to a party, and the party's combined combat/gather/craft power is shown.
    In this single-player demo the invited allies answer on their own after a beat —
    in the live multiplayer game each real player taps Accept or Decline.            */
-const MAX_PARTY=5, INVITE_MS=1600;
+const MAX_PARTY=4, INVITE_MS=1600;
 let partyInvites=[]; // [{uid, at}] pending invites (demo auto-resolves them)
 function partyLeaderUnit(){ return party?units.find(u=>u.id===party.leader):null; }
 function partyMemberUnits(){ return party?party.members.map(id=>units.find(u=>u.id===id)).filter(Boolean):[]; }
