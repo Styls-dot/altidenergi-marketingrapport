@@ -647,7 +647,7 @@ function makeMap(){
     const d=dist(c,{q:0,r:0});
     let type='normal';
     const rnd=Math.random();
-    if(d<=7 && rnd<0.22) type='vein';
+    if(d<=7 && rnd<0.13) type='vein';
     fields.set(key(c.q,c.r),{q:c.q,r:c.r,type,owner:null,ownedSince:0,protectedUntil:0,tower:false,siege:null});
   }
   // søer: uovervindelige felter — må aldrig ligge op ad en anden sø
@@ -662,11 +662,11 @@ function makeMap(){
   }
   // skov-klynger: langsommere at marchere ind i (tunbart)
   const normals=[...fields.values()].filter(f=>f.type==='normal');
-  for(let i=0;i<36;i++){
+  for(let i=0;i<48;i++){
     const seed=normals[Math.floor(Math.random()*normals.length)];
     for(const c of disc(seed,1)){
       const f=F(c.q,c.r);
-      if(f&&f.type==='normal'&&Math.random()<0.75) f.type='forest';
+      if(f&&f.type==='normal'&&Math.random()<0.8) f.type='forest';
     }
   }
   // bjergkæder: tungt at angribe ind i, stærkt at forsvare
