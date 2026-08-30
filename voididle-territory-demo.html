@@ -294,6 +294,7 @@
   .st-break .l{color:var(--muted)}
   .st-break img.tt{width:26px; height:30px; object-fit:contain; vertical-align:-10px; margin-right:7px}
   .st-break img.bt{width:24px; height:30px; object-fit:contain; vertical-align:-10px; margin-right:7px}
+  .st-break .be{display:inline-block; width:24px; text-align:center; font-size:18px; margin-right:7px}
   .st-break .lbl{display:inline-flex; align-items:center}
   .st-total{border-top:1px solid rgba(74,62,32,0.5); margin-top:6px; padding-top:7px; font-size:13px}
   .st-total b{color:var(--gold)}
@@ -447,6 +448,8 @@ const CFG = {
   OFF_POWER: 0.2,            // modsat magt-type kan bruges med 20% styrke
   TOWER_COST: 4, TOWER_WORK: 4,   // watchtower: syn +2 ud over normalt (radius 3)
   FORT_COST: 6,  FORT_WORK: 6,    // fortification: +75% garnison i forsvar
+  SAW_COST: 5,   SAW_WORK: 5,     // savværk: +1 træ pr. døgn
+  MINE_COST: 5,  MINE_WORK: 5,    // mine: +1 sten pr. døgn
   FORT_MULT: 1.75,
   TICK_MS: 500,
   MARCH_MS: 5000,            // rejsetid pr. felt — marcher er synlige som stiplede linjer
@@ -590,7 +593,7 @@ function saveGame(){
       fields:[...fields.values()]
         .filter(f=>f.owner!==null||f.tower||f.fort||f.siege||f.building||f.protectedUntil>Date.now())
         .map(f=>({q:f.q,r:f.r,owner:f.owner,ownedSince:f.ownedSince,
-                  protectedUntil:f.protectedUntil,tower:f.tower,fort:f.fort,siege:f.siege,building:f.building})),
+                  protectedUntil:f.protectedUntil,tower:f.tower,fort:f.fort,sawmill:f.sawmill,mine:f.mine,siege:f.siege,building:f.building})),
     }));
   }catch(e){}
 }
@@ -604,7 +607,7 @@ function loadGame(){
     for(const sf of s.fields||[]){
       const f=F(sf.q,sf.r); if(!f) continue;
       f.owner=sf.owner; f.ownedSince=sf.ownedSince; f.protectedUntil=sf.protectedUntil;
-      f.tower=sf.tower; f.fort=sf.fort||false; f.siege=sf.siege; f.building=sf.building||null;
+      f.tower=sf.tower; f.fort=sf.fort||false; f.sawmill=sf.sawmill||false; f.mine=sf.mine||false; f.siege=sf.siege; f.building=sf.building||null;
       // konvertér gamle enkelt-angriber-belejringer til kapløbs-formatet
       const sg=f.siege;
       if(sg&&sg.att!==undefined&&!sg.atts){
@@ -827,14 +830,15 @@ function effPower(u,f){
   return {p:best[1]*CFG.OFF_POWER,icon:best[0],offUsed:true};
 }
 const BUILDINGS={
-  tower:{name:'Watchtower', icon:'🗼', cost:()=>CFG.TOWER_COST, work:()=>CFG.TOWER_WORK},
-  fort: {name:'Fort',     icon:'🏰', cost:()=>CFG.FORT_COST,  work:()=>CFG.FORT_WORK},
+  tower:  {name:'Watchtower', icon:'🗼', flag:'tower',   cost:()=>CFG.TOWER_COST, work:()=>CFG.TOWER_WORK, fx:'vision +2 around the tile'},
+  fort:   {name:'Fort',       icon:'🏰', flag:'fort',    cost:()=>CFG.FORT_COST,  work:()=>CFG.FORT_WORK,  fx:'+75% defense in sieges'},
+  sawmill:{name:'Sawmill',    icon:'🪚', flag:'sawmill', cost:()=>CFG.SAW_COST,   work:()=>CFG.SAW_WORK,   fx:'+1 🪵 wood per day', res:'wood'},
+  mine:   {name:'Mine',       icon:'⛏', flag:'mine',    cost:()=>CFG.MINE_COST,  work:()=>CFG.MINE_WORK,  fx:'+1 🪨 stone per day', res:'stone'},
 };
-// Byggeri er altid craft-arbejde: 🔨 fuldt, bedste anden magt 20%
-function buildPower(u){
-  const cp=u.cp||100, gp=u.gp||u.lp||100, kp=u.kp||100;
-  return Math.max(kp, Math.max(cp,gp)*CFG.OFF_POWER);
-}
+const BUILD_KINDS=['tower','fort','sawmill','mine'];
+function hasBuilding(f){ return f.tower||f.fort||f.sawmill||f.mine; }
+// ALLE bygninger opføres KUN med craft-power (🔨). Andre magt-typer tæller ikke.
+function buildPower(u){ return u.kp||0; }
 function attTarget(f,gid){
   return (f.owner===null?CFG.NEUTRAL_BASE:CFG.SIEGE_BASE)*(1+CFG.BAR_PER_FIELD*Math.sqrt(fieldsOwned(gid)));
 }
@@ -1083,13 +1087,12 @@ function tickBuilds(){
     if(add<=0) continue;
     b.progress+=add;
     if(b.progress>=b.target){
-      const kind=b.kind||'tower';
-      f.building=null;
-      if(kind==='fort') f.fort=true; else f.tower=true;
+      const kind=b.kind||'tower', B=BUILDINGS[kind];
+      f.building=null; f[B.flag]=true;
       const me=guilds.find(g=>g.player);
       if(f.owner===me.id){
-        log(BUILDINGS[kind].icon+' '+BUILDINGS[kind].name+' completed at ('+f.q+','+f.r+')');
-        toast(kind==='fort'?'The fort strengthens the defense (+75% garrison)':'The watchtower scouts 3 tiles out');
+        log(B.icon+' '+B.name+' completed at ('+f.q+','+f.r+')');
+        toast(B.icon+' '+B.name+' — '+B.fx);
       }
     }
   }
@@ -1103,10 +1106,12 @@ function tickDay(){
   while(now-lastDayTick>=CFG.DAY_MS && phase==='play' && guard++<40){
     lastDayTick+=CFG.DAY_MS; day++;
     for(const g of guilds){
-      let inc=0;
-      for(const f of fields.values())
-        if(f.owner===g.id && now-f.ownedSince>=CFG.DAY_MS) inc+=yieldOf(f);
-      g.pts+=inc;
+      let inc=0,wood=0,stone=0;
+      for(const f of fields.values()) if(f.owner===g.id){
+        if(now-f.ownedSince>=CFG.DAY_MS) inc+=yieldOf(f);
+        if(f.sawmill) wood++; if(f.mine) stone++;
+      }
+      g.pts+=inc; g.wood=(g.wood||0)+wood; g.stone=(g.stone||0)+stone;
       if(g.player&&inc>0){ log('✦ +'+inc+' season points from the realm'); toast('Day '+day+' · +'+inc+' ✦'); }
     }
     if(day>CFG.SEASON_DAYS) endSeason();
@@ -1292,12 +1297,19 @@ function renderGuildInfo(){
     h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp][0]+' ×'+cnt[tp]+' · ✦'+TB[tp][1]+' each</span></span><span>✦ '+(cnt[tp]*TB[tp][1])+'/day</span></div>';
   }
   h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+yld+'</b></span></div>';
-  // bygninger: liste med rigtige billeder
+  // ressourcer: træ + sten fra savværk/mine
+  h+='<div class="gi-sec">Resources</div>'
+    +'<div class="st-break"><span class="lbl">🪵 <span class="l">Wood</span></span><span><b>'+(me.wood||0)+'</b></span></div>'
+    +'<div class="st-break"><span class="lbl">🪨 <span class="l">Stone</span></span><span><b>'+(me.stone||0)+'</b></span></div>';
+  // bygninger: liste med rigtige billeder (savværk/mine bruger emoji indtil art er klar)
   h+='<div class="gi-sec">Buildings</div>';
-  const BLD=[['tower',WTOWER_SRC,'Watchtower','vision +2 around the tile',towers],
-             ['fort',FORT_SRC,'Fort','+75% defense in sieges',forts]];
-  h+=BLD.map(b=>'<div class="st-break"><span class="lbl"><img class="bt" src="'+b[1]+'" alt="">'
-    +'<span class="l">'+b[2]+' · '+b[3]+'</span></span><span>×'+b[4]+'</span></div>').join('');
+  const cntB={};
+  for(const f of fields.values()) if(f.owner===me.id) for(const bk of BUILD_KINDS) if(f[bk]) cntB[bk]=(cntB[bk]||0)+1;
+  const SRCMAP={tower:WTOWER_SRC,fort:FORT_SRC};
+  h+=BUILD_KINDS.map(bk=>{ const B=BUILDINGS[bk];
+    const pic=SRCMAP[bk]?'<img class="bt" src="'+SRCMAP[bk]+'" alt="">':'<span class="be">'+B.icon+'</span>';
+    return '<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+B.name+' · '+B.fx+'</span></span><span>×'+(cntB[bk]||0)+'</span></div>';
+  }).join('');
   if(building) h+='<div class="st-break"><span class="l">🔨 Under construction</span><span>×'+building+'</span></div>';
   // leder-ordrer med hop-til-kort
   h+='<div class="gi-sec">Field orders</div>';
@@ -1571,7 +1583,7 @@ function handleTap(sx,sy){
   const k=key(c.q,c.r);
   if(towerMode){
     const B=BUILDINGS[towerMode];
-    if(B&&f.owner===me.id&&!f.tower&&!f.fort&&!f.building&&me.pts>=B.cost()){
+    if(B&&f.owner===me.id&&!hasBuilding(f)&&!f.building&&me.pts>=B.cost()){
       me.pts-=B.cost();
       f.building={kind:towerMode,progress:0,target:B.work()};
       log('🔨 Construction of '+B.name.toLowerCase()+' started at ('+f.q+','+f.r+')');
@@ -1774,6 +1786,8 @@ function describeField(f){
     if(known.type==='mountain') dfnParts.push('🛡 +60% defense (mountain)');
     if(visSet.has(k)&&f.fort) dfnParts.push('🏰 +75% defense (fort)');
     if(visSet.has(k)&&f.tower) dfnParts.push('🗼 watchtower — vision +2');
+    if(visSet.has(k)&&f.sawmill) dfnParts.push('🪚 sawmill — +1 🪵/day');
+    if(visSet.has(k)&&f.mine) dfnParts.push('⛏ mine — +1 🪨/day');
     if(visSet.has(k)&&f.building){
       const B=BUILDINGS[f.building.kind];
       dfnParts.push('🔨 '+(B?B.name.toLowerCase():'construction')+' '+Math.round(f.building.progress/f.building.target*100)+'% built');
@@ -1828,9 +1842,9 @@ function describeField(f){
     if(fl) acts.push({label:'✖ Remove flag',fn:'removeFlag('+f.q+','+f.r+')'});
     else if(f.owner===me.id) acts.push({label:'🛡 Defense flag',fn:'setFlag('+f.q+','+f.r+',\'def\')'});
     else if(!isBorgF) acts.push({label:'⚔ Attack flag',fn:'setFlag('+f.q+','+f.r+',\'att\')'});
-    if(f.owner===me.id&&!f.tower&&!f.fort&&!f.building&&!isBorgF){
-      acts.push({label:'Build 🗼 '+CFG.TOWER_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'tower\')'});
-      acts.push({label:'Build 🏰 '+CFG.FORT_COST+'✦',fn:'orderBuild('+f.q+','+f.r+',\'fort\')'});
+    if(f.owner===me.id&&!hasBuilding(f)&&!f.building&&!isBorgF){
+      for(const bk of BUILD_KINDS){ const B=BUILDINGS[bk];
+        acts.push({label:'Build '+B.icon+' '+B.cost()+'✦',fn:'orderBuild('+f.q+','+f.r+',\''+bk+'\')'}); }
     }
   }
   el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b><span class="tp-owner">'+who+'</span></div>'
@@ -1920,7 +1934,7 @@ function removeFlag(q,r){
 }
 function orderBuild(q,r,kind){
   const me=guilds.find(g=>g.player), f=F(q,r), B=BUILDINGS[kind];
-  if(!f||!B||f.owner!==me.id||f.tower||f.fort||f.building){ toast('Cannot build here'); return; }
+  if(!f||!B||f.owner!==me.id||hasBuilding(f)||f.building){ toast('Cannot build here'); return; }
   if(me.pts<B.cost()){ toast('Not enough ✦ — '+B.cost()+' required'); return; }
   me.pts-=B.cost();
   f.building={kind,progress:0,target:B.work()};
@@ -1932,6 +1946,21 @@ function orderBuild(q,r,kind){
 /* ================= Rendering ================= */
 // Lille kultivator-figur: kappe i holdfarve, hoved med pandebånd.
 // Egen guild har lysere ansigt; valgt figur står på en guldring.
+function drawBuildingSprite(kind,px,py,alpha){
+  ctx2.globalAlpha=alpha;
+  if(kind==='tower'&&wtImg.complete&&wtImg.naturalWidth){
+    const bw=HEX*0.8, bh=bw*(wtImg.naturalHeight/wtImg.naturalWidth);
+    ctx2.drawImage(wtImg,px-bw/2,py-bh*0.72,bw,bh);
+  } else if(kind==='fort'&&fortImg.complete&&fortImg.naturalWidth){
+    const bw=HEX*1.05, bh=bw*(fortImg.naturalHeight/fortImg.naturalWidth);
+    ctx2.drawImage(fortImg,px-bw/2,py-bh*0.66,bw,bh);
+  } else {
+    ctx2.font='15px Poppins'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+    ctx2.fillText(BUILDINGS[kind]?BUILDINGS[kind].icon:'🏗',px,py-HEX*0.32);
+    ctx2.textBaseline='alphabetic';
+  }
+  ctx2.globalAlpha=1;
+}
 function drawAvatar(x,y,color,selected,mine){
   if(selected){
     ctx2.beginPath(); ctx2.ellipse(x,y+5,7.5,3.2,0,0,7);
@@ -2036,28 +2065,10 @@ function draw(){
         ctx2.fillStyle=g.color; ctx2.font='700 15px Cinzel,serif'; ctx2.fillText('⛩',p.x,p.y-2);
       }
     }
-    if(vis&&f.tower){
-      if(wtImg.complete&&wtImg.naturalWidth){
-        const bw=HEX*0.8, bh=bw*(wtImg.naturalHeight/wtImg.naturalWidth);
-        ctx2.drawImage(wtImg,p.x-bw/2,p.y-bh*0.72,bw,bh);
-      } else { ctx2.fillStyle='#D9A44A'; ctx2.font='10px Poppins'; ctx2.fillText('🗼',p.x+HEX*0.42,p.y-HEX*0.42); }
-    }
-    if(vis&&f.fort){
-      if(fortImg.complete&&fortImg.naturalWidth){
-        const bw=HEX*1.05, bh=bw*(fortImg.naturalHeight/fortImg.naturalWidth);
-        ctx2.drawImage(fortImg,p.x-bw/2,p.y-bh*0.66,bw,bh);
-      } else { ctx2.fillStyle='#D9A44A'; ctx2.font='10px Poppins'; ctx2.fillText('🏰',p.x-HEX*0.42,p.y-HEX*0.42); }
-    }
+    if(vis) for(const bk of BUILD_KINDS) if(f[bk]) drawBuildingSprite(bk,p.x,p.y,1);
     // byggeri i gang: gennemsigtig bygning (ordren) + hammer når en håndværker er på feltet
     if(vis&&f.building){
-      const kind=f.building.kind||'tower';
-      const img=kind==='fort'?fortImg:wtImg;
-      if(img.complete&&img.naturalWidth){
-        ctx2.globalAlpha=0.42;
-        const gw=kind==='fort'?HEX*1.05:HEX*0.8, gh=gw*(img.naturalHeight/img.naturalWidth);
-        ctx2.drawImage(img,p.x-gw/2,p.y-gh*(kind==='fort'?0.66:0.72),gw,gh);
-        ctx2.globalAlpha=1;
-      }
+      drawBuildingSprite(f.building.kind||'tower',p.x,p.y,0.42);
       if(f.owner!==null&&unitsOn(f,f.owner).length>0){
         ctx2.save();
         ctx2.translate(p.x+HEX*0.35,p.y-HEX*0.45);

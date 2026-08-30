@@ -136,6 +136,8 @@ Pr. deltagende hold, sorteret efter føring:
 - Systemet er generisk — senere bygninger (portal, garnison, borg-udvidelse)
   er nye rækker i samme tabel. Artwork foreligger for begge + guild-borgen.
 
+
+**Bygningstyper (demo):** 🗼 Vagttårn (syn +2), 🏰 Fort (+75% forsvar), 🪚 Savværk (+1 træ/døgn) og ⛏ Mine (+1 sten/døgn). **Alle bygninger opføres udelukkende med craft-power (🔨)** — andre magt-typer bidrager ikke. Kun ét byggeri pr. felt. Træ og sten samles i guildens lager (guild.wood/stone) og vil i det rigtige spil finansiere byggeri/opgraderinger.
 ## 9. Grupper (party) på kortet
 
 - Spillere kan joine et **pt**; **pt-lederen flytter hele gruppen** med ét
