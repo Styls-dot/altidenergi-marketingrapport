@@ -297,7 +297,7 @@
 <div class="panel" id="pUpg">
   <div id="standings"></div>
   <h2>Season Tree</h2>
-  <p class="sub">Bought with season points ✦ (1 per tile per day, farms give 2, gold veins 3). Resets at season end.</p>
+  <p class="sub" id="upgPts">You have <b style="color:var(--gold)">0 ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.</p>
   <div id="upgList"></div>
   <div id="bannerEd"></div>
   <button class="abtn" style="width:100%;margin-top:12px" onclick="closePanels()">Close</button>
@@ -1101,19 +1101,24 @@ function renderStandings(){
 }
 function renderUpg(){
   const me=guilds.find(g=>g.player);
+  const pe=document.getElementById('upgPts');
+  if(pe) pe.innerHTML='You have <b style="color:var(--gold)">'+me.pts+' ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.';
   document.getElementById('upgList').innerHTML=UPG.map(u=>{
     const maxed=typeof u.lvl()==='number'&&u.lvl()>=u.max;
     const can=me.pts>=u.cost()&&!maxed;
+    // knappen er altid tap-bar (undtagen maxed), saa man faar en forklaring i stedet for stilhed
     return '<div class="row"><div class="t"><b>'+(u.icon?u.icon+' ':'')+u.name+(typeof u.lvl()==='number'?' · Lv '+u.lvl()+'/'+u.max:'')+'</b><span>'+u.desc+'</span></div>'+
-      '<button class="abtn'+(can?' gold':'')+'" '+(can?'':'disabled style="opacity:.4"')+' onclick="buyUpg(\''+u.id+'\')">'+
+      '<button class="abtn'+(can?' gold':'')+'"'+(maxed?' disabled style="opacity:.4"':(can?'':' style="opacity:.55"'))+' onclick="buyUpg(\''+u.id+'\')">'+
       (maxed?'Max':u.cost()+' ✦')+'</button></div>';
   }).join('');
 }
 function buyUpg(id){
   const u=UPG.find(x=>x.id===id), me=guilds.find(g=>g.player);
-  if(me.pts<u.cost()) return;
-  if(id==='tower'||id==='fort'){ u.buy(); renderUpg(); updateHud(); return; } // betales ved placering
-  me.pts-=u.cost(); u.buy(); renderUpg(); updateHud();
+  const maxed=typeof u.lvl()==='number'&&u.lvl()>=u.max;
+  if(maxed){ toast(u.name+' is already at max level'); return; }
+  if(me.pts<u.cost()){ toast('Not enough ✦ — you have '+me.pts+', need '+u.cost()); return; }
+  me.pts-=u.cost(); u.buy(); renderUpg(); renderStandings&&renderStandings(); updateHud();
+  toast('✦ '+u.name+' upgraded');
 }
 /* ============ Guild-banner: farve + tegn (i spillet: guild-indstillinger) ==== */
 function renderBannerEditor(){
