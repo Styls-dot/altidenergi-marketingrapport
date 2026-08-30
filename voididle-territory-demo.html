@@ -531,7 +531,7 @@ function makeTileSprite(img,rot){
   g.beginPath();
   for(let i=0;i<6;i++){
     const a=Math.PI/180*(60*i); // flad-top: hjørner ved 0°,60°,...
-    const x=w/2+HEX*S*Math.cos(a), y=h/2+HEX*S*Math.sin(a);
+    const x=w/2+(HEX-1.5)*S*Math.cos(a), y=h/2+(HEX-1.5)*S*Math.sin(a); // lidt inde, så artens egen kant klippes
     i?g.lineTo(x,y):g.moveTo(x,y);
   }
   g.closePath(); g.clip();
@@ -2041,7 +2041,9 @@ function draw(){
     }
     const info=vis?f:mem;
     if(tileSprite){
-      const tw=HEX*2+3, th=SQ3*HEX+3; // flad-top: bred sprite, lidt overlap lukker huller
+      const tw=HEX*2, th=SQ3*HEX; // flad-top: bred sprite, nøjagtig hex-størrelse
+      // ensartet mørk kant: fyld hele cellen mørk før arten, så alle felter får samme ramme
+      hexPath(p.x,p.y,HEX); ctx2.fillStyle='#0B100D'; ctx2.fill();
       // normale felter: ren eng som grund, det "fyldte" græs-tile som variation (~25%)
       const busy=(Math.abs(Math.sin(f.q*127.1+f.r*311.7))*43758.5453)%1<0.25;
       const spr=(info.type==='forest'&&forestSprite)?forestSprite
@@ -2060,6 +2062,8 @@ function draw(){
         ctx2.drawImage(spr,-tw/2,-th/2,tw,th);
         ctx2.restore();
       } else ctx2.drawImage(spr,p.x-tw/2,p.y-th/2,tw,th);
+      // ensartet mørk kant mellem alle felter
+      hexPath(p.x,p.y,HEX-0.6); ctx2.strokeStyle='rgba(8,12,10,0.95)'; ctx2.lineWidth=2; ctx2.stroke();
       hexPath(p.x,p.y,HEX-1.2);
       if(info.type==='vein'&&!veinSprite){ ctx2.fillStyle='rgba(87,185,138,0.35)'; ctx2.fill(); }
       else if(info.type==='mountain'&&!mtnSprite){ ctx2.fillStyle='rgba(15,20,26,0.50)'; ctx2.fill(); }
