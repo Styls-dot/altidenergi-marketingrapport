@@ -62,6 +62,13 @@
   kan marchere hen til, og fjendens varsel er selve marchen gennem vildmarken
   (synlig efter fog-reglerne).
 - Belejringen starter først **ved ankomst** — marchen er forsvarerens varsel.
+- **Sammenhængende rige:** man kan kun erobre felter, der grænser op til eget
+  territorium — ingen løsrevne felter "midt i ingenting". Bee-flyvnings-marchen
+  bruges til at flytte/repositionere; selve erobringen sker felt-for-felt ved fronten.
+- **Kaskade-forfald:** mister man et felt, bliver alle egne felter, der derved
+  afskæres fra borgen, straks neutrale. Under en fjendtlig belejring pulser de
+  felter, der står til at blive afskåret, i svag rød som varsel — så holdet kan
+  nå at forsvare choke-pointet (ikke bare feltet, der angribes).
 
 ## 5. Fog of war
 
