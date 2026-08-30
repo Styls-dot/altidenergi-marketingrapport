@@ -459,9 +459,9 @@ const SQ3 = Math.sqrt(3), HEX = 26;
 const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
 const key = (q,r)=>q+','+r;
 const dist = (a,b)=>(Math.abs(a.q-b.q)+Math.abs(a.q+a.r-b.q-b.r)+Math.abs(a.r-b.r))/2;
-function hexToPx(q,r){ return {x:HEX*SQ3*(q+r/2), y:HEX*1.5*r}; }
+function hexToPx(q,r){ return {x:HEX*1.5*q, y:HEX*SQ3*(r+q/2)}; } // flad-top
 function pxToHex(x,y){
-  const q=(SQ3/3*x-y/3)/HEX, r=(2/3*y)/HEX, s=-q-r;
+  const q=(2/3*x)/HEX, r=(-x/3+SQ3/3*y)/HEX, s=-q-r; // flad-top
   let rq=Math.round(q), rr=Math.round(r), rs=Math.round(s);
   const dq=Math.abs(rq-q), dr=Math.abs(rr-r), ds=Math.abs(rs-s);
   if(dq>dr&&dq>ds) rq=-rr-rs; else if(dr>ds) rr=-rq-rs;
@@ -517,13 +517,13 @@ forestImg.onload=()=>{ forestSprite=makeTileSprite(forestImg); };
 // For-render en tekstur klippet til hex-form én gang — billig at stemple pr. felt.
 // rot (radianer, 60°-trin) roterer motivet inde i hex-klippet.
 function makeTileSprite(img,rot){
-  const S=12, w=Math.ceil(SQ3*HEX*S), h=HEX*2*S; // 12x: skarp helt op til maks-zoom på retina
+  const S=12, w=HEX*2*S, h=Math.ceil(SQ3*HEX*S); // flad-top: bred sprite; 12x skarp til maks-zoom
   const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
   const g=oc.getContext('2d');
   g.beginPath();
   for(let i=0;i<6;i++){
-    const a=Math.PI/180*(60*i-30);
-    const x=w/2+(HEX-0.5)*S*Math.cos(a), y=h/2+(HEX-0.5)*S*Math.sin(a);
+    const a=Math.PI/180*(60*i); // flad-top: hjørner ved 0°,60°,...
+    const x=w/2+HEX*S*Math.cos(a), y=h/2+HEX*S*Math.sin(a);
     i?g.lineTo(x,y):g.moveTo(x,y);
   }
   g.closePath(); g.clip();
@@ -2004,7 +2004,7 @@ function drawAvatar(x,y,color,selected,mine){
 function hexPath(cx,cy,s){
   ctx2.beginPath();
   for(let i=0;i<6;i++){
-    const a=Math.PI/180*(60*i-30);
+    const a=Math.PI/180*(60*i); // flad-top
     const x=cx+s*Math.cos(a), y=cy+s*Math.sin(a);
     i?ctx2.lineTo(x,y):ctx2.moveTo(x,y);
   }
@@ -2031,7 +2031,7 @@ function draw(){
     }
     const info=vis?f:mem;
     if(tileSprite){
-      const tw=SQ3*HEX, th=HEX*2;
+      const tw=HEX*2+3, th=SQ3*HEX+3; // flad-top: bred sprite, lidt overlap lukker huller
       // normale felter: ren eng som grund, det "fyldte" græs-tile som variation (~25%)
       const busy=(Math.abs(Math.sin(f.q*127.1+f.r*311.7))*43758.5453)%1<0.25;
       const spr=(info.type==='forest'&&forestSprite)?forestSprite
