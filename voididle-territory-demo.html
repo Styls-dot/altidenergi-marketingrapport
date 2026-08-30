@@ -293,6 +293,26 @@
   .mem-main span{display:block; font-size:10.5px; color:var(--muted)}
   .mem-role{font-size:10px; padding:2px 7px; border-radius:5px; cursor:pointer; white-space:nowrap;
     border:1px solid rgba(138,107,47,0.6); color:var(--gold); background:rgba(217,164,74,0.08)}
+  /* party-medlemskort */
+  .pt-mem{display:grid; grid-template-columns:auto 1fr auto; column-gap:11px; row-gap:8px; align-items:center;
+    padding:11px 12px; border-radius:11px; margin-bottom:8px;
+    background:linear-gradient(180deg, rgba(30,40,33,0.55), rgba(16,23,18,0.6)); border:1px solid rgba(74,62,32,0.42)}
+  .pt-mem.lead{border-color:rgba(217,164,74,0.55);
+    background:linear-gradient(180deg, rgba(52,42,20,0.5), rgba(20,26,18,0.6))}
+  .pt-av{width:40px; height:40px; border-radius:9px; object-fit:cover; flex-shrink:0}
+  .pt-id{min-width:0}
+  .pt-nm{display:flex; align-items:center; gap:7px; font-weight:600; font-size:13.5px; color:var(--text)}
+  .pt-crown{font-size:12px}
+  .pt-status{display:inline-flex; align-items:center; gap:5px; margin-top:3px; font-size:11px; color:var(--muted)}
+  .pt-status i{width:6px; height:6px; border-radius:50%; background:var(--muted); display:inline-block; flex-shrink:0}
+  .pt-status.here i{background:var(--jade)} .pt-status.here{color:#9ED9B8}
+  .pt-status.march i{background:var(--gold)} .pt-status.march{color:#E9C784}
+  .pt-acts{display:flex; flex-direction:column; gap:6px; align-items:stretch}
+  .pt-acts .gi-jump{text-align:center}
+  .pt-stats{grid-column:2 / -1; display:flex; gap:7px; flex-wrap:wrap}
+  .pt-chip{display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-variant-numeric:tabular-nums;
+    padding:3px 9px; border-radius:7px; background:rgba(255,255,255,0.045); border:1px solid rgba(74,62,32,0.5); color:#D8D2C4}
+  .pt-chip b{color:var(--text); font-weight:600}
   .war-row{display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:8px; margin-bottom:5px;
     background:rgba(20,28,22,0.5); border:1px solid rgba(74,62,32,0.4); font-size:12px}
   .war-row.def{border-color:rgba(210,91,74,0.55); background:rgba(210,91,74,0.08)}
@@ -1809,25 +1829,32 @@ function renderParty(){
     +'</div>';
   h+='<p class="sub" style="margin:6px 0 10px">Combined power of everyone in the party. Members automatically follow the leader'
     +(lead?' ('+(lead.name||'the leader')+')':'')+' — move the leader and the group trails along.</p>';
-  h+='<div class="gi-sec">Members</div>';
+  h+='<div class="gi-sec">Members · '+s.count+'/'+MAX_PARTY+'</div>';
   for(const u of partyMemberUnits()){
     const isL=u.id===party.leader;
-    const where=(lead&&u.q===lead.q&&u.r===lead.r)?'with the leader':(u.route&&u.route.length?'marching to the leader':unitPosText(u));
-    h+='<div class="mem-row">'
-      +'<img class="mem-av" src="'+AVATAR_SRC+'" alt="">'
-      +'<div class="mem-main"><b>'+(u.name||'Warrior')+(isL?' 👑':'')+'</b>'
-      +'<span>⚔'+fmtN(u.cp||0)+' · 🪓'+fmtN(u.gp||0)+' · 🔨'+fmtN(u.kp||0)+' · '+where+'</span></div>'
-      +'<button class="gi-jump" onclick="jumpTo('+u.q+','+u.r+')">Jump</button>'
-      +(isL?'':'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="leaveParty('+u.id+')">Remove</button>')
+    const atLead=lead&&u.q===lead.q&&u.r===lead.r;
+    const status=isL?'<span class="pt-status here"><i></i>leading the party</span>'
+      :atLead?'<span class="pt-status here"><i></i>with the leader</span>'
+      :(u.route&&u.route.length)?'<span class="pt-status march"><i></i>marching to the leader</span>'
+      :'<span class="pt-status"><i></i>'+unitPosText(u)+'</span>';
+    h+='<div class="pt-mem'+(isL?' lead':'')+'">'
+      +'<img class="pt-av" src="'+AVATAR_SRC+'" alt="">'
+      +'<div class="pt-id"><div class="pt-nm">'+(u.name||'Warrior')+(isL?'<span class="pt-crown">👑</span>':'')+'</div>'+status+'</div>'
+      +'<div class="pt-acts"><button class="gi-jump" onclick="jumpTo('+u.q+','+u.r+')">Jump</button>'
+      +(isL?'':'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="leaveParty('+u.id+')">Remove</button>')+'</div>'
+      +'<div class="pt-stats"><span class="pt-chip">⚔ <b>'+fmtN(u.cp||0)+'</b></span>'
+      +'<span class="pt-chip">🪓 <b>'+fmtN(u.gp||0)+'</b></span>'
+      +'<span class="pt-chip">🔨 <b>'+fmtN(u.kp||0)+'</b></span></div>'
       +'</div>';
   }
   if(partyInvites.length){
     h+='<div class="gi-sec">Pending invites</div>';
     for(const inv of partyInvites){ const u=units.find(x=>x.id===inv.uid); if(!u) continue;
-      h+='<div class="mem-row"><img class="mem-av" src="'+AVATAR_SRC+'" alt="">'
-        +'<div class="mem-main"><b>'+(u.name||'Warrior')+'</b><span>⏳ awaiting their reply…</span></div>'
-        +'<button class="gi-jump" onclick="acceptInvite('+u.id+')">Accept</button>'
-        +'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="declineInvite('+u.id+')">Decline</button>'
+      h+='<div class="pt-mem"><img class="pt-av" src="'+AVATAR_SRC+'" alt="">'
+        +'<div class="pt-id"><div class="pt-nm">'+(u.name||'Warrior')+'</div>'
+        +'<span class="pt-status march"><i></i>awaiting their reply…</span></div>'
+        +'<div class="pt-acts"><button class="gi-jump" onclick="acceptInvite('+u.id+')">Accept</button>'
+        +'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="declineInvite('+u.id+')">Decline</button></div>'
         +'</div>';
     }
     h+='<p class="sub" style="margin:6px 0 0">In the live multiplayer game each invited player taps Accept or Decline themselves.</p>';
