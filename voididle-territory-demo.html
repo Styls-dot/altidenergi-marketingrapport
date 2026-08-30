@@ -71,12 +71,12 @@
   }
   .foot>*{pointer-events:auto}
   #tilePop{
-    position:fixed; z-index:40; width:238px; transform:translateX(-50%);
+    position:fixed; z-index:40; width:266px; transform:translateX(-50%);
     background:
       radial-gradient(130% 100% at 50% 0%, rgba(38,52,42,0.96), rgba(16,24,18,0.97) 62%), #101812;
-    border:2px solid #8A6B2F; border-radius:12px; padding:10px 12px 9px;
+    border:2px solid #8A6B2F; border-radius:12px; padding:13px 15px 12px;
     box-shadow:0 8px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(217,164,74,0.16);
-    font-size:12px; color:var(--muted);
+    font-size:12px; line-height:1.4; color:var(--muted);
   }
   #tilePop::before{
     content:''; position:absolute; top:-6.5px; left:50%; width:10px; height:10px;
@@ -87,23 +87,23 @@
     border-right:2px solid #8A6B2F; border-bottom:2px solid #8A6B2F; background:#131B14; }
   .tp-head{
     display:flex; justify-content:space-between; align-items:baseline; gap:8px;
-    padding-bottom:6px; margin-bottom:6px;
+    padding-bottom:8px; margin-bottom:8px;
     border-bottom:1px solid transparent;
     border-image:linear-gradient(90deg, transparent, rgba(180,155,98,0.5), transparent) 1;
   }
   .tp-head b{color:var(--gold); font-family:Cinzel,serif; font-size:14px}
   .tp-owner{font-size:11px; text-align:right}
-  .tp-row{padding:2px 0; font-size:11.5px}
+  .tp-row{padding:3px 0; font-size:11.5px}
   .tp-dim{opacity:.6}
-  .tp-pows{margin:6px 0; border-top:1px solid rgba(74,62,32,.5); border-bottom:1px solid rgba(74,62,32,.5); padding:5px 0}
-  .tp-pow{display:flex; justify-content:space-between; padding:2px 0; font-size:11.5px; opacity:.65}
+  .tp-pows{margin:8px 0; border-top:1px solid rgba(74,62,32,.5); border-bottom:1px solid rgba(74,62,32,.5); padding:7px 0}
+  .tp-pow{display:flex; justify-content:space-between; padding:3px 0; font-size:11.5px; opacity:.65}
   .tp-pow.main{opacity:1; color:#E8E4D8}
   .tp-pow.main b{color:var(--gold)}
-  .tp-acts{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
-  .tp-acts .abtn{padding:7px 10px; font-size:12px}
-  .tp-sec{margin:7px 0 4px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); opacity:.85; border-top:1px solid rgba(74,62,32,.5); padding-top:6px}
-  .tp-allies{display:grid; grid-template-columns:minmax(0,1fr) 2.9em 2.9em 2.9em auto; align-items:center; column-gap:7px; row-gap:2px; margin:2px 0 4px}
-  .tp-allies .h{font-size:9px; letter-spacing:.04em; text-transform:uppercase; opacity:.45; padding-bottom:1px}
+  .tp-acts{display:flex; flex-wrap:wrap; gap:8px; margin-top:11px}
+  .tp-acts .abtn{padding:8px 12px; font-size:12px}
+  .tp-sec{margin:11px 0 6px; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); opacity:.85; border-top:1px solid rgba(74,62,32,.5); padding-top:9px}
+  .tp-allies{display:grid; grid-template-columns:minmax(0,1fr) 2.9em 2.9em 2.9em auto; align-items:center; column-gap:9px; row-gap:5px; margin:3px 0 5px}
+  .tp-allies .h{font-size:9px; letter-spacing:.04em; text-transform:uppercase; opacity:.45; padding-bottom:2px}
   .tp-allies .h.r{text-align:right}
   .tp-a-n{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px}
   .tp-a-s{font-size:11px; text-align:right; font-variant-numeric:tabular-nums; opacity:.85; white-space:nowrap}
@@ -1048,6 +1048,13 @@ function mpEtaSec(u){
   return Math.max(0,Math.ceil((regen-(Date.now()-u.lastRegen))/1000));
 }
 function fmtMMSS(s){ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+// kompakte tal: under 100.000 vises som de er; fra 100.000 og op bruger vi k (og M ved millioner)
+function fmtN(n){
+  n=Math.round(n||0);
+  if(Math.abs(n)>=1e6){ const m=n/1e6; return (m>=10?Math.round(m):Math.round(m*10)/10)+'M'; }
+  if(Math.abs(n)>=1e5) return Math.round(n/1e3)+'k';
+  return ''+n;
+}
 function tickRegen(){
   const now=Date.now();
   const regen=CFG.MP_REGEN_MS*Math.pow(0.75,upgrades.boots);
@@ -1334,8 +1341,8 @@ function renderGuildInfo(){
     +'<div class="sub2">['+me.tag+'] · rank #'+rank+' of '+guilds.length+' · '+members+' members</div></div></div>';
   h+='<div class="gi-grid">'
     +'<div class="gi-cell"><div class="n">'+tiles+'</div><div class="l">Tiles held</div></div>'
-    +'<div class="gi-cell"><div class="n">✦ '+yld+'</div><div class="l">Points / day</div></div>'
-    +'<div class="gi-cell"><div class="n">'+me.pts+'</div><div class="l">Season ✦ banked</div></div>'
+    +'<div class="gi-cell"><div class="n">✦ '+fmtN(yld)+'</div><div class="l">Points / day</div></div>'
+    +'<div class="gi-cell"><div class="n">'+fmtN(me.pts)+'</div><div class="l">Season ✦ banked</div></div>'
     +'<div class="gi-cell"><div class="n">'+(me.captures||0)+'</div><div class="l">Captures</div></div>'
     +'</div>';
   if(risk.length){
@@ -1355,11 +1362,11 @@ function renderGuildInfo(){
     const extra=gran[tp]?' <span style="color:var(--gold)">· '+gran[tp]+'× 🌾</span>':'';
     h+='<div class="st-break"><span class="lbl">'+pic+'<span class="l">'+TB[tp]+' ×'+cnt[tp]+extra+'</span></span><span>✦ '+sumY[tp]+'/day</span></div>';
   }
-  h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+yld+'</b></span></div>';
+  h+='<div class="st-break st-total"><span>End-of-season payout <span class="l">(daily yield → permanent guild upgrades)</span></span><span><b>✦ '+fmtN(yld)+'</b></span></div>';
   // ressourcer: træ + sten fra savværk/mine
   h+='<div class="gi-sec">Resources</div>'
-    +'<div class="st-break"><span class="lbl">🪵 <span class="l">Wood</span></span><span><b>'+(me.wood||0)+'</b></span></div>'
-    +'<div class="st-break"><span class="lbl">🪨 <span class="l">Stone</span></span><span><b>'+(me.stone||0)+'</b></span></div>';
+    +'<div class="st-break"><span class="lbl">🪵 <span class="l">Wood</span></span><span><b>'+fmtN(me.wood||0)+'</b></span></div>'
+    +'<div class="st-break"><span class="lbl">🪨 <span class="l">Stone</span></span><span><b>'+fmtN(me.stone||0)+'</b></span></div>';
   // bygninger: liste med rigtige billeder (savværk/mine bruger emoji indtil art er klar)
   h+='<div class="gi-sec">Buildings</div>';
   const cntB={};
@@ -1419,7 +1426,7 @@ function renderStandings(){
 function renderUpg(){
   const me=guilds.find(g=>g.player);
   const pe=document.getElementById('upgPts');
-  if(pe) pe.innerHTML='You have <b style="color:var(--gold)">'+me.pts+' ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.';
+  if(pe) pe.innerHTML='You have <b style="color:var(--gold)">'+fmtN(me.pts)+' ✦</b> · earn 1 per tile per day (farms 2, gold veins 3), paid at the day tick.';
   document.getElementById('upgList').innerHTML=UPG.map(u=>{
     const maxed=typeof u.lvl()==='number'&&u.lvl()>=u.max;
     const can=me.pts>=u.cost()&&!maxed;
@@ -1553,7 +1560,7 @@ function updateHud(){
   document.getElementById('hDay').textContent=Math.min(day,CFG.SEASON_DAYS);
   // ny dag = nye ✦ guild-point (bevægelse regenererer løbende, ikke pr. dag)
   document.getElementById('hNext').textContent=fmtMMSS((CFG.DAY_MS-(Date.now()-lastDayTick))/1000);
-  document.getElementById('hPts').textContent=me?me.pts:0;
+  document.getElementById('hPts').textContent=fmtN(me?me.pts:0);
   document.getElementById('hSeason').textContent=Math.max(0,CFG.SEASON_DAYS-day+1)+' days';
   const b=document.getElementById('logBadge');
   b.style.display=unread>0?'block':'none'; b.textContent=unread;
@@ -1796,9 +1803,9 @@ function renderParty(){
   const lead=partyLeaderUnit(), s=partyStats();
   let h='<div class="gi-grid">'
     +'<div class="gi-cell"><div class="n">'+s.count+'/'+MAX_PARTY+'</div><div class="l">Members</div></div>'
-    +'<div class="gi-cell"><div class="n">⚔ '+s.cp+'</div><div class="l">Combat</div></div>'
-    +'<div class="gi-cell"><div class="n">🪓 '+s.gp+'</div><div class="l">Gather</div></div>'
-    +'<div class="gi-cell"><div class="n">🔨 '+s.kp+'</div><div class="l">Craft</div></div>'
+    +'<div class="gi-cell"><div class="n">⚔ '+fmtN(s.cp)+'</div><div class="l">Combat</div></div>'
+    +'<div class="gi-cell"><div class="n">🪓 '+fmtN(s.gp)+'</div><div class="l">Gather</div></div>'
+    +'<div class="gi-cell"><div class="n">🔨 '+fmtN(s.kp)+'</div><div class="l">Craft</div></div>'
     +'</div>';
   h+='<p class="sub" style="margin:6px 0 10px">Combined power of everyone in the party. Members automatically follow the leader'
     +(lead?' ('+(lead.name||'the leader')+')':'')+' — move the leader and the group trails along.</p>';
@@ -1809,7 +1816,7 @@ function renderParty(){
     h+='<div class="mem-row">'
       +'<img class="mem-av" src="'+AVATAR_SRC+'" alt="">'
       +'<div class="mem-main"><b>'+(u.name||'Warrior')+(isL?' 👑':'')+'</b>'
-      +'<span>⚔'+(u.cp||0)+' · 🪓'+(u.gp||0)+' · 🔨'+(u.kp||0)+' · '+where+'</span></div>'
+      +'<span>⚔'+fmtN(u.cp||0)+' · 🪓'+fmtN(u.gp||0)+' · 🔨'+fmtN(u.kp||0)+' · '+where+'</span></div>'
       +'<button class="gi-jump" onclick="jumpTo('+u.q+','+u.r+')">Jump</button>'
       +(isL?'':'<button class="gi-jump" style="border-color:var(--muted);color:var(--muted)" onclick="leaveParty('+u.id+')">Remove</button>')
       +'</div>';
@@ -1848,9 +1855,9 @@ function updateSelCard(){
   document.getElementById('scName').textContent=selUnit.name||'Warrior';
   const tagEl=document.getElementById('scTag');
   tagEl.innerHTML=(g.sigil?sigilTag(g.sigil,12)+' ':'')+(g.tag||''); tagEl.style.background=g.color;
-  document.getElementById('scCp').textContent=selUnit.cp||100;
-  document.getElementById('scGp').textContent=selUnit.gp||100;
-  document.getElementById('scKp').textContent=selUnit.kp||100;
+  document.getElementById('scCp').textContent=fmtN(selUnit.cp||100);
+  document.getElementById('scGp').textContent=fmtN(selUnit.gp||100);
+  document.getElementById('scKp').textContent=fmtN(selUnit.kp||100);
   document.getElementById('scMp').innerHTML=selUnit.marching?'🥾 on the march…'
     :'🥾 Movement <b>'+selUnit.mp+'/'+mpMax()+'</b> '
      +'●'.repeat(selUnit.mp)+'○'.repeat(Math.max(0,mpMax()-selUnit.mp))
@@ -1948,7 +1955,7 @@ function describeField(f){
     const eff=u0?Math.round((u0[kk]||0)*pct/100):null;
     return '<div class="tp-pow'+(kk===bestKk?' main':'')+'"><span>'+ic+' '+nm
       +' <span class="tp-dim">'+pct+'%</span></span><b>'
-      +(u0!==null?eff+(kk===bestKk?' ◄':''):pct+'%')+'</b></div>';
+      +(u0!==null?fmtN(eff)+(kk===bestKk?' ◄':''):pct+'%')+'</b></div>';
   }).join('');
   let rows='';
   if(isBorgF){
@@ -2042,12 +2049,15 @@ function describeField(f){
         else if(partySlots()>=MAX_PARTY) btn='<span class="tp-dim">full</span>';
         else btn='<button class="tp-inv" onclick="invitePlayer('+u.id+')">Invite</button>';
         ptRows+='<span class="tp-a-n">'+(u.name||'Warrior')+'</span>'
-          +'<span class="tp-a-s">'+(u.cp||0)+'</span><span class="tp-a-s">'+(u.gp||0)+'</span><span class="tp-a-s">'+(u.kp||0)+'</span>'
+          +'<span class="tp-a-s">'+fmtN(u.cp||0)+'</span><span class="tp-a-s">'+fmtN(u.gp||0)+'</span><span class="tp-a-s">'+fmtN(u.kp||0)+'</span>'
           +'<span class="tp-a-act">'+btn+'</span>';
       }
       ptRows+='</div>';
-      if(party) ptRows+='<div class="tp-row tp-dim">Combined ⚔'+partyStats().cp+' · 🪓'+partyStats().gp+' · 🔨'+partyStats().kp+' — <a href="#" onclick="openParty();return false" style="color:var(--gold)">open party panel</a></div>';
-      else ptRows+='<div class="tp-row tp-dim">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
+      if(party){
+        const ps=partyStats();
+        ptRows+='<div class="tp-row tp-dim" style="margin-top:2px">Combined ⚔'+fmtN(ps.cp)+' · 🪓'+fmtN(ps.gp)+' · 🔨'+fmtN(ps.kp)+'</div>'
+          +'<div class="tp-acts"><button class="abtn gold" onclick="openParty()">👥 Open party panel</button></div>';
+      } else ptRows+='<div class="tp-row tp-dim" style="margin-top:2px">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
     }
   }
   el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b><span class="tp-owner">'+who+'</span></div>'
