@@ -531,7 +531,7 @@ const CFG = {
   DAY_MS: 30000,             // 1 spildøgn (reelt: 24 t)
   SEASON_DAYS: 16,           // reelt: 30 dage
   MAP_RADIUS: 24,
-  SPAWN_BAND: [8, 14],       // ankerafstand til nærmeste borg
+  SPAWN_BAND: [6, 9],        // ankerafstand til nærmeste borg (tæt nok til at fronter mødes hurtigt)
   PLACE_RADIUS: 12,          // 25x25-vindue ≈ hex-disc radius 12
   BORG_MIN_GAP: 3,           // min. 2 frie felter mellem borge
   VISION_FIELD: 1, VISION_UNIT: 2, VISION_BORG: 5, VISION_TOWER: 3,
@@ -2739,6 +2739,17 @@ document.getElementById('bStart').addEventListener('click',()=>{
   const p=hexToPx(placeAnchor.q,placeAnchor.r); cam.x=p.x; cam.y=p.y; cam.z=0.8;
   setCtx('<b>Choose your stronghold tile</b> — tap a tile in the lit area (25×25)');
 });
+// giv AI-guilds et rigtigt territorium fra start, så der er en front tæt på spilleren
+// at angribe (uden det kan man kun angribe felter, der grænser op til eget land)
+function seedFrontiers(){
+  for(const g of guilds){
+    if(g.player) continue;
+    for(const cc of disc(g.borg,3)){
+      const f=F(cc.q,cc.r);
+      if(f&&f.owner===null&&f.type!=='water'){ f.owner=g.id; f.ownedSince=Date.now(); f.protectedUntil=0; }
+    }
+  }
+}
 function startGame(c){
   const me=foundGuild('Jade River',BANNER_COLORS[8],'JADE','dragon',c,true);
   const AI=[['Stormcleft',BANNER_COLORS[9],'STRM','tiger'],['Azure Sea',BANNER_COLORS[10],'AZUR','wave'],['Mistpeak',BANNER_COLORS[11],'MIST','moon']];
@@ -2746,11 +2757,12 @@ function startGame(c){
     const a=pickAnchor();
     if(a) foundGuild(n,col,tag,sig,a,false);
   }
+  seedFrontiers();
   phase='play';
   lastDayTick=Date.now();
   computeVision(); updateHud();
   log('⛩ The stronghold is raised. The realm begins here.');
-  log('Scouts report: three rival guilds have settled somewhere in the fog…');
+  log('Scouts report rival guilds holding land nearby — expand to their border, then ⚔ Capture.');
   const p=hexToPx(c.q,c.r); cam.x=p.x; cam.y=p.y; cam.z=1.9;
   select(units.find(u=>u.g===me.id));
   toast('Member 1 selected — tap a lit neighbor tile to move');

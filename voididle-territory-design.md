@@ -67,6 +67,12 @@
 - **Sammenhængende rige:** man kan kun erobre felter, der grænser op til eget
   territorium — ingen løsrevne felter "midt i ingenting". Bee-flyvnings-marchen
   bruges til at flytte/repositionere; selve erobringen sker felt-for-felt ved fronten.
+  Man angriber altså en fjendes felt ved at have territorium ved siden af det
+  (⚔ Capture i felt-infoen); er man ikke nabo endnu, står der "⛓ Not connected".
+- **Naboguilds fra start (demo):** guilds spawner tæt (afstand 6–9), og AI-guilds
+  får et rigtigt territorium (radius 3) med det samme, så der er en front kun 1–3
+  felter væk — synlig fra borgen (syn = 5) — og man kan nå i kamp med det samme
+  i stedet for at marchere længe gennem tåge.
 - **Kaskade-forfald:** mister man et felt, bliver alle egne felter, der derved
   afskæres fra borgen, straks neutrale. Under en fjendtlig belejring pulser de
   felter, der står til at blive afskåret, i svag rød som varsel — så holdet kan
