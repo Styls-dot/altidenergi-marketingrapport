@@ -2244,16 +2244,7 @@ function orderBuild(q,r,kind){
   payCost(me,c);
   f.building={kind,progress:0,target:B.work()};
   log('🔨 Build order: '+B.name.toLowerCase()+' at ('+q+','+r+')');
-  // send a crafter automatically: the selected unit walks there and builds it.
-  // (Building only advances while one of your units stands on the tile.)
-  const u=selUnit&&selUnit.g===me.id?selUnit:units.find(x=>x.g===me.id);
-  if(u&&(u.q!==q||u.r!==r)&&!u.marching){
-    const rt=findRoute(u,q,r,false);
-    if(rt&&rt.length){ u.route=rt; toast('🔨 '+B.name+' ordered — '+(u.name||'a crafter')+' is on the way ('+rt.length+' steps)'); }
-    else toast('🔨 '+B.name+' ordered — send a crafter (🔨) to build it (no route right now)');
-  } else if(u){
-    toast('🔨 '+B.name+' ordered — '+(u.name||'your crafter')+' starts building');
-  } else toast('Order placed — send a crafter (🔨) to build it');
+  toast('🔨 '+B.name+' ordered — send a crafter (🔨) to the tile to build it');
   updateHud(); describeField(f);
 }
 
