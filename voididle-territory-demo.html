@@ -111,9 +111,17 @@
   }
   #tilePop.above::before{ top:auto; bottom:-6.5px; border:none;
     border-right:2px solid #8A6B2F; border-bottom:2px solid #8A6B2F; background:#131B14; }
+  .tp-close{
+    position:absolute; top:7px; right:8px; z-index:2;
+    width:24px; height:24px; padding:0; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(12,18,14,0.6); border:1px solid rgba(138,107,47,0.5);
+    border-radius:6px; color:var(--muted); font-size:13px; cursor:pointer;
+  }
+  .tp-close:hover{color:var(--text); border-color:rgba(217,164,74,0.8)}
   .tp-head{
     display:flex; justify-content:space-between; align-items:baseline; gap:8px;
-    padding-bottom:8px; margin-bottom:8px;
+    padding-right:28px; padding-bottom:8px; margin-bottom:8px;
     border-bottom:1px solid transparent;
     border-image:linear-gradient(90deg, transparent, rgba(180,155,98,0.5), transparent) 1;
   }
@@ -1760,16 +1768,10 @@ function handleTap(sx,sy){
     else toast('The banner can only be planted on visible tiles');
     bannerMode=false; return;
   }
-  // oplyst felt: første tap viser feltinfo med Gå hertil/Capture-knap,
-  // andet tap på samme felt udfører handlingen direkte (hurtig-flowet)
-  if(selUnit&&reach.has(k)){
-    const armed=uiFocus==='field'&&selField&&selField.q===c.q&&selField.r===c.r;
-    if(!armed){ selField=f; describeField(f); return; }
-    const kind=reach.get(k);
-    if(tryMove(selUnit,c.q,c.r)){ if(kind==='attack') toast(f.owner===null?'Capture under way…':'Mobilizing — the fight starts shortly'); }
-    else toast(selUnit.mp<1?'No movement yet — it regenerates over time':'Cannot move there right now');
-    select(selUnit); return;
-  }
+  // tap igen på det felt hvis tooltip allerede er åben → luk det (toggle)
+  if(uiFocus==='field'&&tilePopAt&&tilePopAt.q===c.q&&tilePopAt.r===c.r){ closeTilePop(); return; }
+  // oplyst felt: tap viser feltinfo med Gå hertil/Capture-knap i selve vinduet
+  if(selUnit&&reach.has(k)){ selField=f; describeField(f); return; }
   // belejret felt: åbn kamp-panelet (valg af egne enheder virker stadig nedenfor)
   if(f.siege&&visSet.has(key(c.q,c.r))) openSiegePanel(c.q,c.r);
   // vælg enhed på feltet — gentagne tap cykler og ender i fravalg,
@@ -1986,7 +1988,7 @@ function select(u){
   computeReach(u);
   const isLead=isLeaderU(u), inP=inParty(u);
   setCtx('<b>'+(u.name||'Warrior')+'</b> · '+u.mp+'/'+mpMax()+' movement'
-    +(isLead?' · 👥 party leader — allies follow you':inP?' · 👥 following the party leader':'')+' · tap a tile for info — tap again to move');
+    +(isLead?' · 👥 party leader — allies follow you':inP?' · 👥 following the party leader':'')+' · tap a tile for info — tap it again to close');
   const acts=[{label:'🚩 Plant banner',fn:'armBanner()',gold:true}];
   if(party) acts.push({label:'👥 Party ('+partyStats().count+')',fn:'openParty()',gold:true});
   else {
@@ -1998,6 +2000,7 @@ function select(u){
 function armBanner(){ bannerMode=true; toast('Tap a visible tile'); }
 let tilePopAt=null;
 function hideTilePop(){ tilePopAt=null; document.getElementById('tilePop').hidden=true; }
+function closeTilePop(){ hideTilePop(); selField=null; if(selUnit) select(selUnit); else uiFocus='unit'; }
 function updateTilePop(){
   const el=document.getElementById('tilePop');
   if(!tilePopAt||uiFocus!=='field'||document.querySelector('.panel.open')){ el.hidden=true; return; }
@@ -2022,9 +2025,10 @@ function describeField(f){
   const el=document.getElementById('tilePop');
   tilePopAt={q:f.q,r:f.r}; setActions([]);
   const coord='<span class="tp-coord">📍 '+f.q+','+f.r+'</span>';
-  if(!known){ el.innerHTML='<div class="tp-head"><b>Unknown lands</b>'+coord+'</div><div class="tp-row">The fog hides this tile — move closer, or build a 🗼 watchtower.</div>'; el.hidden=false; updateTilePop(); return; }
+  const closeX='<button class="tp-close" onclick="closeTilePop()" aria-label="Close">✕</button>';
+  if(!known){ el.innerHTML=closeX+'<div class="tp-head"><b>Unknown lands</b>'+coord+'</div><div class="tp-row">The fog hides this tile — move closer, or build a 🗼 watchtower.</div>'; el.hidden=false; updateTilePop(); return; }
   if(known.type==='water'){
-    el.innerHTML='<div class="tp-head"><b>Lake</b>'+coord+'</div><div class="tp-row">🌊 Deep water — impassable. Units and routes go around it, and no one can hold it.</div>';
+    el.innerHTML=closeX+'<div class="tp-head"><b>Lake</b>'+coord+'</div><div class="tp-row">🌊 Deep water — impassable. Units and routes go around it, and no one can hold it.</div>';
     el.hidden=false; updateTilePop(); return;
   }
   const TERR={normal:'Meadow',farm:'Farm',forest:'Forest',mountain:'Mountain',vein:'Gold Vein'};
@@ -2156,7 +2160,7 @@ function describeField(f){
       } else ptRows+='<div class="tp-row tp-dim" style="margin-top:2px">Invite an ally to start a party — the inviter leads and the others march to them.</div>';
     }
   }
-  el.innerHTML='<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b>'+coord+'<span class="tp-owner">'+who+'</span></div>'
+  el.innerHTML=closeX+'<div class="tp-head"><b>'+(TERR[known.type]||'Meadow')+'</b>'+coord+'<span class="tp-owner">'+who+'</span></div>'
     +rows+noteRow+ptRows
     +(acts.length?'<div class="tp-acts">'+acts.map(b=>'<button class="abtn'+(b.gold?' gold':'')+'" onclick="'+b.fn+'">'+b.label+'</button>').join('')+'</div>':'');
   el.hidden=false;
