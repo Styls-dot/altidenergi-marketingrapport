@@ -1666,11 +1666,12 @@ function initCharts(m) {
         pointRadius: 0, pointHoverRadius: 5, order: 2,
       },
       {
-        type: 'scatter', label: 'Sign-ups', yAxisID: 'y2',
-        data: (m.tot_cac_window_signups || []).map((v,i) => ({x: (m.tot_cac_window_labels||[])[i], y: v})),
-        backgroundColor: '#F5C518', borderColor: '#F5C518',
-        pointRadius: 5, pointHoverRadius: 7, order: 1,
-        showLine: false,
+        type: 'line', label: 'Sign-ups (højre akse)', yAxisID: 'y2',
+        data: m.tot_cac_window_signups || [],
+        borderColor: '#475569', backgroundColor: '#475569',
+        borderWidth: 1.5, borderDash: [4, 4], tension: 0, fill: false,
+        pointRadius: 4, pointHoverRadius: 6, pointStyle: 'circle', order: 1,
+        showLine: true,
       }
     ]},
     options: {
@@ -1689,7 +1690,7 @@ function initCharts(m) {
             label: ctx => {
               const lbl = ctx.dataset.label;
               const val = ctx.parsed.y;
-              if (lbl === 'Sign-ups') return ' ' + lbl + ': ' + fmtInt(val) + ' kunder';
+              if (lbl.startsWith('Sign-ups')) return ' ' + lbl + ': ' + fmtInt(val) + ' kunder';
               return ' ' + lbl + ': ' + fmtKr(val);
             }
           }
@@ -1698,7 +1699,7 @@ function initCharts(m) {
       scales: {
         x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 10 }, color: '#94A3B8' } },
         y:  { position: 'left', beginAtZero: true, title: { display: true, text: 'CAC (kr)', font: { family: 'DM Sans', size: 11 }, color: '#94A3B8' }, grid: { color: '#EEF2F6' }, ticks: { font: { family: 'DM Sans', size: 10 }, color: '#94A3B8', callback: v => v.toLocaleString('da-DK') } },
-        y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Sign-ups', font: { family: 'DM Sans', size: 11 }, color: '#94A3B8' }, grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 10 }, color: '#94A3B8', callback: v => v.toLocaleString('da-DK') } }
+        y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Sign-ups', font: { family: 'DM Sans', size: 11 }, color: '#475569' }, grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 10 }, color: '#94A3B8', callback: v => v.toLocaleString('da-DK') } }
       }
     }
   });
@@ -1721,11 +1722,12 @@ function initCharts(m) {
         pointRadius: 0, pointHoverRadius: 5, order: 2,
       },
       {
-        type: 'scatter', label: 'Paid signups', yAxisID: 'y2',
-        data: m.series_clients_paid_all_ex_brand.map((v,i) => ({x: m.months_series[i], y: v})),
-        backgroundColor: '#F5C518', borderColor: '#F5C518',
-        pointRadius: 5, pointHoverRadius: 7, order: 1,
-        showLine: false,
+        type: 'line', label: 'Paid signups (højre akse)', yAxisID: 'y2',
+        data: m.series_clients_paid_all_ex_brand || [],
+        borderColor: '#475569', backgroundColor: '#475569',
+        borderWidth: 1.5, borderDash: [4, 4], tension: 0, fill: false,
+        pointRadius: 4, pointHoverRadius: 6, pointStyle: 'circle', order: 1,
+        showLine: true,
       }
     ]},
     options: {
